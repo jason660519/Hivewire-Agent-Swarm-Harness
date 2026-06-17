@@ -1,0 +1,73 @@
+# ───────────────────────────────────────────────────────────────
+# Confidential — internal strategy & business documents. DO NOT COMMIT.
+# ───────────────────────────────────────────────────────────────
+PRD.md
+PRD_EN.md
+PRD.pdf
+PRD_EN.pdf
+Hivewire_x_anyIP_Proposal.md
+Hivewire_x_anyIP_Proposal_EN.md
+Hivewire_x_anyIP_Proposal.pdf
+Hivewire_x_anyIP_Proposal_EN.pdf
+Business_Model_OnePager.svg
+Business_Model_OnePager.png
+Business_Model_OnePager.pdf
+
+# Catch-all guards for future confidential files
+*PRD*
+*Proposal*
+*Business_Model*
+*confidential*
+*internal*
+/secrets/
+/private/
+
+# ───────────────────────────────────────────────────────────────
+# Python
+# ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.uv/
+uv.lock
+.pytest_cache/
+
+# ───────────────────────────────────────────────────────────────
+# Node / UI
+# ───────────────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+# ───────────────────────────────────────────────────────────────
+# Env / secrets
+# ───────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# ───────────────────────────────────────────────────────────────
+# Data / runtime
+# ───────────────────────────────────────────────────────────────
+data/
+*.jsonl
+sessions/
+
+# ───────────────────────────────────────────────────────────────
+# OS / editor
+# ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

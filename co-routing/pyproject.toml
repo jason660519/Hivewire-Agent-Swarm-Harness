@@ -1,0 +1,34 @@
+[project]
+name = "co-routing"
+version = "0.1.0"
+description = "Hivewire co-routing wedge: harness-agnostic MCP tool for region-aware egress routing"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.2.0",
+    "httpx>=0.28.0",
+    "pydantic>=2.9.0",
+    "pyyaml>=6.0.2",
+]
+
+[project.optional-dependencies]
+litellm = [
+    "litellm>=1.55.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-httpserver>=1.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

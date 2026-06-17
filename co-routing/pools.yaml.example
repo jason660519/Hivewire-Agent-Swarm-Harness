@@ -1,0 +1,31 @@
+# Hivewire co-routing — egress pool config
+# Copy to pools.yaml and fill in real proxy credentials.
+# Pools with mock: true make direct connections (clearly labeled in response metadata).
+# Without this file, the built-in mock pools (mock-us-west, mock-asia, mock-eu) are used.
+
+pools:
+  mock-us-west:
+    region: us-west
+    mock: true
+
+  mock-asia:
+    region: asia
+    mock: true
+
+  mock-eu:
+    region: eu
+    mock: true
+
+  # Real proxy pool template — uncomment and fill in when credentials are available.
+  # anyIP API mechanics (rotation/session/auth shape) are unknown until
+  # their docs are reviewed. See TODOS.md: "anyIP API mechanics."
+  #
+  # anyip-us-west:
+  #   region: us-west
+  #   mock: false
+  #   proxy_url: "http://USERNAME:PASSWORD@proxy.anyip.io:8080"
+  #
+  # anyip-asia:
+  #   region: asia
+  #   mock: false
+  #   proxy_url: "http://USERNAME:PASSWORD@proxy.anyip.io:8080"
