@@ -19,18 +19,22 @@
 
 pools:
 
-  # --- proxy-cheap (residential) — VERIFIED 2026-06-22 --------------------
-  # proxy-cheap encodes options in the PASSWORD suffix (not the username), and
-  # one base credential serves rotating + sticky + geo:
-  #   _country-<cc>     geo-lock          _session-<id>   sticky (same id = same IP)
-  # With session_policy=rotating the harness feeds a fresh {session_id} each
-  # request (-> new IP); sticky reuses one (-> held IP). HTTP-only; the gateway
-  # CONNECT-tunnels https targets. Connection host/port come from the dashboard's
-  # "Setup Credentials" (the REST API does not return them).
-  proxycheap-residential:
-    region: us                # country code, e.g. us / de / gb
+  # --- proxy-cheap (residential) — base rotating VERIFIED 2026-06-22 ------
+  # VERIFIED: the base credential (username:password) over the HTTP gateway
+  # rotates the egress IP per request. HTTP-only; the gateway CONNECT-tunnels
+  # https targets. The gateway host/port come from the dashboard "Setup
+  # Credentials" screen — the REST API does not return them.
+  proxycheap-residential-rotating:
+    region: us
     mock: false
-    proxy_template: "http://USERNAME:PASSWORD_country-{region}_session-{session_id}@thehub.proxy-cheap.com:8080"
+    proxy_template: "http://USERNAME:PASSWORD@thehub.proxy-cheap.com:8080"
+  #
+  # CAVEAT (sticky / geo): appending password-suffix modifiers like
+  # _session-<id> or _country-<cc> to the base credential is INCONSISTENT — it
+  # worked with one credential and returned HTTP 500 with a regenerated one.
+  # Don't rely on composing those. Generate a dedicated credential via the
+  # dashboard "Setup Credentials" (Session ID for sticky, Country for geo) and
+  # use that full URL as a fixed proxy_url instead.
 
   # --- anyIP (residential) -------------------------------------------------
   # Exact rotation/session/auth grammar still TBD until their docs are reviewed.

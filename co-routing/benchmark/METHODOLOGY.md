@@ -111,10 +111,13 @@ A dataset that hasn't passed Phase 0 is calibration only and labelled as such.
 ## Change log
 
 - 2026-06-22 — protocol drafted (pre-registration), no real runs yet.
-- 2026-06-22 — proxy-cheap integration verified end-to-end (Phase 0 passed:
-  rotating varies IP, sticky holds). Confirmed connection grammar: one base
-  credential + password-suffix modifiers `_country-<cc>` (geo) and
-  `_session-<id>` (sticky); rotating uses a fresh session per request. Format
-  recorded in vendors.yaml.example and docs/vendor-integration.md. Preliminary
-  proxy-cheap baseline run at 10 runs/target (below the ≥20 formal bar — not yet
-  a publishable result).
+- 2026-06-22 — proxy-cheap base rotating verified (Phase 0: base credential over
+  the HTTP gateway varies the egress IP per request, confirmed across two
+  credentials). Preliminary baseline run at 10 runs/target (below the ≥20 formal
+  bar — not publishable yet).
+- 2026-06-22 — CORRECTION: composing sticky/geo by appending password-suffix
+  modifiers (`_session-<id>`, `_country-<cc>`) to the base credential is NOT
+  reliable — it worked with one credential and returned HTTP 500 after the
+  password was regenerated. sticky/geo tracks must use a dedicated credential
+  generated via proxy-cheap's dashboard "Setup Credentials", not composition.
+  Earlier "verified modifier grammar" note retracted.

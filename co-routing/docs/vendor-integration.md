@@ -59,10 +59,14 @@ so this is visible in the results.
   like `curl -x http://...:8080 https://target`. Copy only up to `:8080` — if
   the trailing target URL comes along, the proxy URL fails to parse
   (`Invalid port: '8080 https:'`).
-- **One base credential can serve several modes.** Vendors that use
-  password/username modifiers often let a single base credential do rotating,
-  sticky, and geo by varying the suffix — you may not need to generate a
-  separate credential per mode.
+- **Don't assume one base credential composes into every mode.** Some vendors
+  let you vary a username/password suffix; others register session/geo
+  credentials server-side so the suffix must be one the vendor *issued*, not one
+  you invent. With proxy-cheap, the base credential rotates reliably, but
+  hand-appending `_session-<id>` / `_country-<cc>` returned HTTP 500 after a
+  password change — sticky/geo need credentials generated in the dashboard
+  (and you must copy the per-session string with its suffix, not the plain
+  Authentication field, which just rotates). Verify behaviour; don't assume.
 - **SSRF guard through a proxy is advisory.** A residential proxy resolves the
   destination hostname itself, so client-side DNS pinning becomes a pre-check,
   not a binding pin. The risk model also changes: requests egress from the
