@@ -107,6 +107,37 @@ def test_non_mock_pool_without_egress_source_rejected():
         PoolConfig(mock=False)
 
 
+def test_resolve_expands_env_var(monkeypatch):
+    # Secret lives in the env (i.e. .env); pools.yaml only names the var.
+    monkeypatch.setenv("PC_TEST_URL", "http://u:p@gw.test:8080")
+    pool = PoolConfig(mock=False, proxy_url="${PC_TEST_URL}")
+    route = RouteProfile(egress_pool="v", region="us")
+    assert resolve_proxy_url(pool, route, "sid") == "http://u:p@gw.test:8080"
+
+
+def test_resolve_unset_env_var_raises(monkeypatch):
+    monkeypatch.delenv("PC_DEFINITELY_UNSET_URL", raising=False)
+    pool = PoolConfig(mock=False, proxy_url="${PC_DEFINITELY_UNSET_URL}")
+    route = RouteProfile(egress_pool="v", region="us")
+    with pytest.raises(ValueError, match="unset env var"):
+        resolve_proxy_url(pool, route, "sid")
+
+
+def test_unused_env_pool_does_not_break_load(tmp_path, monkeypatch):
+    # An unset ${VAR} in one pool must not stop other pools loading/resolving.
+    monkeypatch.delenv("PC_UNSET", raising=False)
+    yaml_file = tmp_path / "pools.yaml"
+    yaml_file.write_text(
+        "pools:\n"
+        "  mock-x:\n    region: us\n    mock: true\n"
+        "  needs-env:\n    mock: false\n    proxy_url: '${PC_UNSET}'\n"
+    )
+    pools = load_pools(path=yaml_file)  # must not raise
+    assert "mock-x" in pools and "needs-env" in pools
+    # the mock pool resolves fine even though needs-env's var is unset
+    assert resolve_proxy_url(pools["mock-x"], RouteProfile(egress_pool="mock-x", region="us"), "s") is None
+
+
 def test_template_pool_loaded_from_yaml(tmp_path):
     yaml_file = tmp_path / "pools.yaml"
     yaml_file.write_text(

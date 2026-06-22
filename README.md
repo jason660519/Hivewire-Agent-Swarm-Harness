@@ -92,9 +92,10 @@ web_fetch("https://example.com", {
 
 `session_policy=sticky` reuses one upstream IP for the process's lifetime;
 `rotating` requests a fresh IP each call. Credentials are stripped from the
-response metadata. Per-vendor username grammars (anyIP, Bright Data, Oxylabs,
-Smartproxy) are in `vendors.yaml.example` — confirm the exact format against
-your vendor's docs before production.
+response metadata. Per-vendor connection grammars are in
+[`vendors.yaml.example`](co-routing/vendors.yaml.example); the step-by-step
+wiring + verification process (and the gotchas) is in
+[`docs/vendor-integration.md`](co-routing/docs/vendor-integration.md).
 
 ### Benchmark egress across pools
 

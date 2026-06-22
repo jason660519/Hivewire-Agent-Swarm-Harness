@@ -12,12 +12,25 @@
 #   {session_id}  <- generated per request. session_policy=sticky reuses one id
 #                    (same IP for the session); rotating gets a fresh id (new IP).
 #
-# IMPORTANT: the username grammar below follows each vendor's common public
-# pattern, but the exact field names/separators differ per plan and change over
-# time. Confirm against the vendor's own dashboard/docs before trusting in prod.
-# (Tracked in TODOS.md: "anyIP API mechanics" — same applies to every vendor.)
+# IMPORTANT: most grammars below follow each vendor's common public pattern but
+# are UNVERIFIED — exact field names/separators differ per plan and change over
+# time. Confirm against the vendor's dashboard/docs before prod. proxy-cheap is
+# the exception: its block is VERIFIED end-to-end (see docs/vendor-integration.md).
 
 pools:
+
+  # --- proxy-cheap (residential) — VERIFIED 2026-06-22 --------------------
+  # proxy-cheap encodes options in the PASSWORD suffix (not the username), and
+  # one base credential serves rotating + sticky + geo:
+  #   _country-<cc>     geo-lock          _session-<id>   sticky (same id = same IP)
+  # With session_policy=rotating the harness feeds a fresh {session_id} each
+  # request (-> new IP); sticky reuses one (-> held IP). HTTP-only; the gateway
+  # CONNECT-tunnels https targets. Connection host/port come from the dashboard's
+  # "Setup Credentials" (the REST API does not return them).
+  proxycheap-residential:
+    region: us                # country code, e.g. us / de / gb
+    mock: false
+    proxy_template: "http://USERNAME:PASSWORD_country-{region}_session-{session_id}@thehub.proxy-cheap.com:8080"
 
   # --- anyIP (residential) -------------------------------------------------
   # Exact rotation/session/auth grammar still TBD until their docs are reviewed.

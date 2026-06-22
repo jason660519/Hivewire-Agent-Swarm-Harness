@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 from enum import Enum
 from pathlib import Path
@@ -99,7 +100,48 @@ def _builtin_mock_pools() -> dict[str, PoolConfig]:
     }
 
 
+_DOTENV_LOADED = False
+
+
+def _load_dotenv_once() -> None:
+    """Load .env into os.environ (without overriding real env vars) so pool
+    config can reference ${VARS} whose secrets live only in .env. Looks in cwd
+    and at the repo root (server.py's grandparent dir)."""
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+    _DOTENV_LOADED = True
+    for candidate in (Path.cwd() / ".env", Path(__file__).resolve().parent.parent / ".env"):
+        if not candidate.exists():
+            continue
+        for line in candidate.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+        break
+
+
+def _expand_env(value: str | None) -> str | None:
+    """Expand ${VAR} from the environment (loading .env on first need). Keeps
+    secrets out of pools.yaml — it holds var names, .env holds the values."""
+    if not value or "$" not in value:
+        return value
+    _load_dotenv_once()
+    expanded = os.path.expandvars(value)
+    missing = re.findall(r"\$\{([^}]+)\}", expanded)
+    if missing:
+        raise ValueError(
+            f"pool config references unset env var(s): {missing}. Set them in .env"
+        )
+    return expanded
+
+
 def load_pools(path: Path = _POOLS_FILE) -> dict[str, PoolConfig]:
+    """Load pools with their config verbatim. ${VAR} references are NOT expanded
+    here — expansion is lazy (resolve_proxy_url), so an unset env var only errors
+    for the pool that's actually used, not every pool in the file."""
     if not path.exists():
         return _builtin_mock_pools()
     with open(path) as fh:
@@ -139,10 +181,11 @@ def resolve_proxy_url(
     if pool.mock:
         return None
     if pool.proxy_template:
-        return _render_template(
+        rendered = _render_template(
             pool.proxy_template, region=route.region, session_id=session_id
         )
-    return pool.proxy_url
+        return _expand_env(rendered)
+    return _expand_env(pool.proxy_url)
 
 
 def _mask_proxy(proxy_url: str | None) -> str:
