@@ -118,8 +118,9 @@ def console_page() -> str:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hivewire Operations Console</title>
-  <!-- Local Typography Fallback -->
-  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-dark: #070a13;
@@ -127,9 +128,9 @@ def console_page() -> str:
       --bg-active: rgba(31, 41, 55, 0.85);
       --border-color: rgba(255, 255, 255, 0.08);
       --border-active: rgba(255, 255, 255, 0.15);
-      --text-main: #e2e8f0;
-      --text-muted: #64748b;
-      --text-dim: #94a3b8;
+      --text-main: #e6edf6;
+      --text-muted: #8896ab;
+      --text-dim: #aeb9c9;
       
       --color-emerald: #10b981;
       --color-emerald-bg: rgba(16, 185, 129, 0.1);
@@ -139,8 +140,6 @@ def console_page() -> str:
       --color-rose-bg: rgba(244, 63, 94, 0.1);
       --color-cyan: #06b6d4;
       --color-cyan-bg: rgba(6, 182, 212, 0.1);
-      --color-indigo: #6366f1;
-      --color-indigo-bg: rgba(99, 102, 241, 0.1);
     }
 
     * {
@@ -150,9 +149,11 @@ def console_page() -> str:
     }
 
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
       background-color: var(--bg-dark);
-      background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 400px),
+      background-image: radial-gradient(circle at top right, rgba(6, 182, 212, 0.05), transparent 400px),
                         radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.03), transparent 300px);
       color: var(--text-main);
       height: 100vh;
@@ -199,24 +200,34 @@ def console_page() -> str:
     .logo {
       font-weight: 700;
       font-size: 14px;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      background: linear-gradient(135deg, #06b6d4, #6366f1);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: var(--text-main);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
 
     .logo::before {
       content: '';
       display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: #06b6d4;
+      width: 7px;
+      height: 7px;
+      background: var(--color-cyan);
       border-radius: 50%;
-      box-shadow: 0 0 8px #06b6d4;
+    }
+
+    .proto-badge {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--color-amber);
+      background: var(--color-amber-bg);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      padding: 2px 7px;
+      border-radius: 99px;
+      margin-left: 4px;
     }
 
     .nav-links {
@@ -265,12 +276,28 @@ def console_page() -> str:
     }
     
     .circuit-node.model { color: var(--color-cyan); }
-    .circuit-node.egress { color: var(--color-indigo); }
+    .circuit-node.egress { color: var(--color-cyan); }
     .circuit-node.ip { color: var(--text-main); font-weight: 500; }
     
-    .circuit-arrow {
+    .circuit-sep {
       color: var(--text-muted);
-      font-size: 10px;
+      font-size: 13px;
+      opacity: 0.55;
+    }
+
+    .circuit-tag {
+      margin-left: 6px;
+      font-size: 9px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .circuit-node.ip.empty {
+      color: var(--text-muted);
+      font-style: italic;
+      font-weight: 400;
     }
 
     .status-dot {
@@ -493,9 +520,9 @@ def console_page() -> str:
     }
 
     .lane-events {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
       gap: 10px;
-      overflow-x: auto;
       padding-bottom: 4px;
     }
 
@@ -506,12 +533,10 @@ def console_page() -> str:
       border-left: 3px solid var(--color-emerald);
       border-radius: 6px;
       padding: 8px 12px;
-      min-width: 190px;
-      max-width: 240px;
+      min-width: 0;
       cursor: pointer;
       transition: all 0.2s;
       font-size: 11px;
-      flex-shrink: 0;
       text-align: left;
     }
 
@@ -532,10 +557,13 @@ def console_page() -> str:
 
     .event-type {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
+      font-size: 10px;
       text-transform: uppercase;
       color: var(--text-muted);
       margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .event-title {
@@ -551,9 +579,12 @@ def console_page() -> str:
       display: flex;
       justify-content: space-between;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
+      font-size: 10px;
       color: var(--text-muted);
     }
+
+    .event-meta .lat-warn { color: var(--color-amber); }
+    .event-meta .lat-crit { color: var(--color-rose); font-weight: 600; }
 
     /* Option B: Overlay Timeline Fork Diff view */
     .diff-container {
@@ -595,6 +626,11 @@ def console_page() -> str:
       padding-left: 16px;
     }
 
+    .diff-row-events .event-card {
+      min-width: 150px;
+      flex-shrink: 0;
+    }
+
     .diff-badge {
       display: inline-block;
       font-size: 9px;
@@ -613,7 +649,13 @@ def console_page() -> str:
       background: rgba(0, 0, 0, 0.2);
       padding: 16px;
       position: relative;
+      width: 100%;
+      max-width: 780px;
+      margin: 0 auto;
     }
+
+    /* Center short content so single-map / empty views aren't stranded at the top */
+    #route.view-panel.active { justify-content: center; }
 
     .map-svg-wrap {
       display: flex;
@@ -648,8 +690,8 @@ def console_page() -> str:
     .map-node { fill: #0f172a; stroke: #223044; stroke-width: 2; }
     .map-node.active { stroke: var(--color-cyan); filter: drop-shadow(0 0 4px var(--color-cyan)); }
     .map-node-text { fill: var(--text-main); font-size: 11px; font-weight: 600; }
-    .map-edge { stroke: #223044; stroke-width: 2; stroke-dasharray: 6 6; }
-    .map-edge.active { stroke: var(--color-cyan); stroke-dasharray: 10 100; stroke-dashoffset: 0; }
+    .map-edge { stroke: #223044; stroke-width: 2; stroke-dasharray: 6 6; fill: none; }
+    .map-edge.active { stroke: var(--color-cyan); stroke-width: 2; stroke-dasharray: 6 8; stroke-dashoffset: 0; opacity: 0.85; }
 
     /* Right Inspector */
     .inspector {
@@ -834,6 +876,44 @@ def console_page() -> str:
       text-align: center;
       padding: 40px 0;
       font-size: 12px;
+      margin: auto;
+    }
+
+    /* Non-blocking prototype toast (replaces native alert) */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 134px;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(13, 20, 32, 0.96);
+      border: 1px solid var(--color-cyan);
+      color: var(--text-main);
+      font-size: 12px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 50;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive: collapse inspector then sidebar on narrow viewports */
+    @media (max-width: 1100px) {
+      .workspace { grid-template-columns: 200px 1fr; }
+      .inspector { display: none; }
+      .egress-circuit { display: none; }
+      .top-bar { grid-template-columns: auto 1fr auto; }
+      .composer-panel { grid-template-columns: 1fr 130px; }
+      .composer-modes { display: none; }
+    }
+    @media (max-width: 720px) {
+      .workspace { grid-template-columns: 1fr; }
+      aside { display: none; }
     }
   </style>
 </head>
@@ -847,16 +927,17 @@ def console_page() -> str:
         <a class="active" href="/console">Console</a>
         <a href="/benchmark">Benchmark</a>
       </div>
+      <span class="proto-badge">Prototype</span>
     </div>
 
     <!-- Option A: Co-routing & Egress Hop Circuit -->
     <div class="egress-circuit">
       <div class="status-dot"></div>
       <span class="circuit-node model" id="modelTier">web_fetch</span>
-      <span class="circuit-arrow">──(rotating)──></span>
-      <span class="circuit-node egress" id="egressPool">proxy-cheap</span>
-      <span class="circuit-arrow">──></span>
-      <span class="circuit-node ip" id="observedIp">observed IP pending</span>
+      <span class="circuit-sep">&rsaquo;</span>
+      <span class="circuit-node egress"><span id="egressPool">proxy-cheap</span><span class="circuit-tag" id="egressPolicy">rotating</span></span>
+      <span class="circuit-sep">&rsaquo;</span>
+      <span class="circuit-node ip empty" id="observedIp">awaiting first request</span>
     </div>
 
     <div class="global-metrics">
@@ -915,9 +996,9 @@ def console_page() -> str:
     <section class="main-viewport">
       <!-- Toolbar Tabs -->
       <div class="view-toolbar">
-        <button class="tab-btn active" onclick="switchView('timeline')">Live swarm timeline</button>
-        <button class="tab-btn" onclick="switchView('diff')">Overlay Fork Diff</button>
-        <button class="tab-btn" onclick="switchView('route')">Egress route map</button>
+        <button class="tab-btn active" onclick="switchView('timeline')">Live timeline</button>
+        <button class="tab-btn" onclick="switchView('diff')">Fork diff</button>
+        <button class="tab-btn" onclick="switchView('route')">Route map</button>
       </div>
 
       <!-- Live Timeline -->
@@ -948,9 +1029,11 @@ def console_page() -> str:
               <rect width="100%" height="100%" fill="url(#grid)" />
 
               <!-- Connection Hops -->
-              <path class="map-edge active" x1="120" y1="120" x2="350" y2="120" d="M 120 120 L 350 120" stroke-width="2" />
-              <path class="map-edge active" x1="350" y1="120" x2="580" y2="120" d="M 350 120 L 580 120" stroke-width="2">
-                <animate attributeName="stroke-dashoffset" values="100;0" dur="5s" repeatCount="indefinite" />
+              <path class="map-edge active" d="M 120 120 L 350 120">
+                <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" />
+              </path>
+              <path class="map-edge active" d="M 350 120 L 580 120">
+                <animate attributeName="stroke-dashoffset" values="14;0" dur="1s" repeatCount="indefinite" />
               </path>
 
               <!-- Node 1: Client Host -->
@@ -963,8 +1046,8 @@ def console_page() -> str:
 
               <!-- Node 2: Egress Proxy Pool -->
               <g transform="translate(350, 120)">
-                <circle class="map-node active" r="34" fill="rgba(99, 102, 241, 0.08)" />
-                <circle r="4" fill="var(--color-indigo)" />
+                <circle class="map-node active" r="34" fill="rgba(6, 182, 212, 0.08)" />
+                <circle r="4" fill="var(--color-cyan)" />
                 <text class="map-node-text" y="48" text-anchor="middle" id="mapPool">proxy-cheap</text>
                 <text y="62" text-anchor="middle" fill="var(--text-muted)" font-size="9" font-family="'JetBrains Mono', monospace" id="mapPolicy">rotating</text>
               </g>
@@ -987,7 +1070,7 @@ def console_page() -> str:
               </div>
               <div class="map-overlay-row">
                 <span>Observed IP</span>
-                <span id="overlayIp">pending</span>
+                <span id="overlayIp">awaiting</span>
               </div>
               <div class="map-overlay-row">
                 <span>Latency</span>
@@ -1014,9 +1097,9 @@ def console_page() -> str:
   <!-- Bottom Command Composer (Option B) -->
   <footer class="composer-panel">
     <div class="composer-modes">
-      <button class="composer-mode-btn active" id="modeSteerBtn" onclick="setComposerMode('steer')">⚡ Steer current run</button>
-      <button class="composer-mode-btn" id="modeFollowBtn" onclick="setComposerMode('follow')">⏱ Queue follow-up</button>
-      <button class="composer-mode-btn" id="modeForkBtn" onclick="setComposerMode('fork')">🔁 Fork from event</button>
+      <button class="composer-mode-btn active" id="modeSteerBtn" onclick="setComposerMode('steer')">Steer current run</button>
+      <button class="composer-mode-btn" id="modeFollowBtn" onclick="setComposerMode('follow')">Queue follow-up</button>
+      <button class="composer-mode-btn" id="modeForkBtn" onclick="setComposerMode('fork')">Fork from event</button>
     </div>
 
     <div class="composer-input-row">
@@ -1033,16 +1116,22 @@ def console_page() -> str:
       </div>
     </div>
 
-    <button class="composer-send-btn" type="button" onclick="alert('Simulation: command queued to Hivewire harness control loop.')">
+    <button class="composer-send-btn" type="button" onclick="toast('Prototype: command queued to Hivewire harness control loop.')">
       Send Command
     </button>
   </footer>
+
+  <div id="toast" class="toast"></div>
 
   <script>
     const $=id=>document.getElementById(id);
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const pct=x=>x==null?'--':Math.round(x*100)+'%';
     const usd=x=>x==null?'--':'$'+Number(x).toFixed(4);
+    const latClass=ms=>ms==null?'':(ms>8000?'lat-crit':(ms>3000?'lat-warn':''));
+
+    let toastTimer=null;
+    function toast(msg){const t=$('toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2600);}
 
     let selectedRecord = null;
     let selectedRunId = '';
@@ -1100,7 +1189,7 @@ def console_page() -> str:
           </div>
           <div class="inspector-kv">
             <div class="inspector-label">Egress pool</div>
-            <div class="inspector-value" style="color: var(--color-indigo);">${esc(r.pool || 'default')}</div>
+            <div class="inspector-value" style="color: var(--color-cyan);">${esc(r.pool || 'default')}</div>
           </div>
           <div class="inspector-kv">
             <div class="inspector-label">Egress IP</div>
@@ -1117,8 +1206,8 @@ def console_page() -> str:
         <pre>${esc(JSON.stringify(r, null, 2))}</pre>
 
         <div style="display: flex; gap: 8px; margin-top: 16px;">
-          <button class="composer-send-btn" style="flex: 1; height: 32px;" onclick="alert('Forking branch from this checkpoint...')">Fork From Here</button>
-          <button class="composer-send-btn" style="flex: 1; height: 32px; background: transparent; border-color: var(--border-color); color: var(--text-dim);" onclick="alert('Replaying event trace...')">Replay Node</button>
+          <button class="composer-send-btn" style="flex: 1; height: 32px;" onclick="toast('Prototype: forking branch from this checkpoint.')">Fork From Here</button>
+          <button class="composer-send-btn" style="flex: 1; height: 32px; background: transparent; border-color: var(--border-color); color: var(--text-dim);" onclick="toast('Prototype: replaying event trace.')">Replay Node</button>
         </div>
       `;
     }
@@ -1137,7 +1226,10 @@ def console_page() -> str:
       $('success').textContent = pct(primaryVendor.success_rate);
 
       $('egressPool').textContent = newest.pool || primaryVendor.vendor || 'proxy-cheap';
-      $('observedIp').textContent = newest.observed_ip || 'observed IP not recorded';
+      $('egressPolicy').textContent = newest.session_policy || 'rotating';
+      const ipNode = $('observedIp');
+      if (newest.observed_ip) { ipNode.textContent = newest.observed_ip; ipNode.classList.remove('empty'); }
+      else { ipNode.textContent = 'awaiting first request'; ipNode.classList.add('empty'); }
       
       // Update interactive SVG Map elements
       $('mapPool').textContent = (newest.vendor || 'proxy-cheap').slice(0, 18);
@@ -1145,7 +1237,10 @@ def console_page() -> str:
       $('mapTarget').textContent = (newest.target_class || 'latest').slice(0, 18);
 
       $('overlayPool').textContent = newest.pool || newest.vendor || 'proxy-cheap';
-      $('overlayIp').textContent = newest.observed_ip || 'pending';
+      const oipEl = $('overlayIp');
+      oipEl.textContent = newest.observed_ip || 'awaiting';
+      oipEl.style.color = newest.observed_ip ? '' : 'var(--text-muted)';
+      oipEl.style.fontStyle = newest.observed_ip ? '' : 'italic';
       $('overlayLatency').textContent = newest.latency_ms != null ? newest.latency_ms.toFixed(0) + 'ms' : '--';
 
       // Dropdown Populators
@@ -1190,7 +1285,7 @@ def console_page() -> str:
                   <div class="event-type">${esc(r.vendor)} · ${esc(r.pool || 'pool')}</div>
                   <div class="event-title">${esc(r.outcome.toUpperCase())} · ${r.status_code ?? '--'}</div>
                   <div class="event-meta">
-                    <span>${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
+                    <span class="${latClass(r.latency_ms)}">${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
                     <span>${esc(r.session_policy || 'rotating')}</span>
                   </div>
                 </div>
@@ -1241,7 +1336,7 @@ def console_page() -> str:
                         <div class="event-type">${esc(r.vendor)}</div>
                         <div class="event-title">${esc(r.outcome.toUpperCase())}</div>
                         <div class="event-meta">
-                          <span>${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
+                          <span class="${latClass(r.latency_ms)}">${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
                         </div>
                       </div>
                     `).join('') || '<div class="empty-state" style="padding: 0;">No events in this lane</div>'}
@@ -1262,7 +1357,7 @@ def console_page() -> str:
                         <div class="event-type">${esc(r.vendor)}</div>
                         <div class="event-title">${esc(r.outcome.toUpperCase())}</div>
                         <div class="event-meta">
-                          <span>${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
+                          <span class="${latClass(r.latency_ms)}">${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
                         </div>
                       </div>
                     `).join('') || '<div class="empty-state" style="padding: 0;">No events in this lane</div>'}
