@@ -16,15 +16,21 @@ Technical follow-ups for the co-routing wedge + benchmark harness.
   (success/block/error, latency, cost), self-contained HTML report, and a live
   stdlib dashboard. Runs offline against the built-in mock pools today.
 
-## Pending — blocked on real credentials (anyIP trial incoming)
+## Verified with real proxy-cheap credentials
 
-- [ ] **Phase 0: prove real egress works.** Confirm a real request actually
-  changes the egress IP — `ip_echo` so `observed_ip` differs from our own,
-  `rotating` varies it, `sticky` holds it. Everything to date is mock (direct
-  connections), so this is the make-or-break first check.
+- [x] **Phase 0: prove real rotating egress works.** A real proxy-cheap rotating
+  request changes the egress IP, and repeated calls vary the observed IP. This
+  verifies the base rotating path only; sticky/geo are intentionally deferred
+  until dashboard-generated credentials exist.
+
+## Pending — blocked on vendor access / credentials
+
 - [ ] **anyIP API mechanics.** Map product type / geo / session to endpoint
   params + headers from their integration guide, then fill the real
-  `proxy_template`s in `pools.yaml`. (Credentials + docs incoming.)
+  `proxy_template`s in `pools.yaml`. (Credits/docs incoming.)
+- [ ] **proxy-cheap sticky/geo mechanics.** Generate dedicated dashboard
+  credentials for sticky/geo before re-testing those tracks. Do not compose
+  `_session-*` / `_country-*` suffixes onto the base rotating password.
 - [ ] **A2 live smoke test.** Verify an actual `litellm.acompletion` egresses
   through the bound client's IP end to end (needs a model API key + proxy cred).
 - [ ] **Re-verify the DNS-rebinding SSRF fix once a real proxy is wired in.**

@@ -60,9 +60,12 @@ npm-debug.log*
 co-routing/pools.yaml
 co-routing/benchmark/targets.yaml
 co-routing/benchmark/pricing.yaml
+co-routing/benchmark/profiles.yaml
 
 # Generated benchmark artifact (regenerate from results.jsonl when needed).
 co-routing/benchmark/report.html
+co-routing/benchmark/runs/
+co-routing/benchmark/logs/
 
 # ───────────────────────────────────────────────────────────────
 # Data / runtime

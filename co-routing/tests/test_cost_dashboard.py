@@ -1,7 +1,7 @@
 """Tests for cost estimation and the live dashboard's data aggregation."""
 from __future__ import annotations
 
-from benchmark.dashboard import dashboard_data
+from benchmark.dashboard import benchmark_page, console_page, dashboard_data, home_page
 from benchmark.metrics import aggregate
 
 
@@ -62,6 +62,11 @@ def test_dashboard_picks_best_and_cheapest():
     assert d["cheapest_vendor"] in {"anyip", "proxy-cheap"}
     assert d["total_spend_usd"] == 4.0  # anyip 1GB*$2 + proxy-cheap 2GB*$1
     assert d["mock"] is False
+    assert d["outcome_counts"] == {"blocked": 1, "success": 2}
+    assert {(s["vendor"], s["target_class"]) for s in d["track_stats"]} == {
+        ("anyip", "high-volume"),
+        ("proxy-cheap", "high-volume"),
+    }
 
 
 def test_dashboard_flags_mock_dataset():
@@ -76,3 +81,66 @@ def test_dashboard_recent_is_capped_and_newest_first():
     d = dashboard_data(records, {})
     assert len(d["recent"]) == 12
     assert d["recent"][0]["observed_ip"] == "19"  # newest first
+
+
+def test_console_page_is_data_driven_not_mocked_partner_claims():
+    page = console_page()
+    assert "fetch('/data')" in page
+    assert "proxy-cheap" in page
+    assert 'href="/benchmark"' in page
+    assert "anyIP" not in page
+    assert "Claude" not in page
+    assert "192.144.12.87" not in page
+    assert "fonts.googleapis.com" not in page
+
+
+def test_benchmark_page_is_independent_data_driven_moat_view():
+    page = benchmark_page()
+    assert "'/data'" in page
+    assert "fetch(url)" in page
+    assert "latest_manifest" in page
+    assert "track_stats" in page
+    assert "run_history" in page
+    assert "runSelector" in page
+    assert "compareSelector" in page
+    assert "data?run_id=" in page
+    assert "compare_run_id" in page
+    assert "scheduler_status" in page
+    assert "schedulerPanel" in page
+    assert 'href="/console"' in page
+    assert "Benchmark moat" in page
+    assert "Methodology" in page
+    assert "Track evidence" in page
+    assert "Run-to-run delta" in page
+    assert "Scheduler" in page
+    assert "proxy-cheap" in page
+    assert "fonts.googleapis.com" not in page
+
+
+def test_home_page_links_single_port_pages():
+    page = home_page()
+    assert 'href="/console"' in page
+    assert 'href="/benchmark"' in page
+    assert "127.0.0.1:8899" not in page
+
+
+def test_dashboard_data_can_include_latest_manifest():
+    manifest = {"run_id": "20260623T000000Z-test", "config_sha256": "abc123"}
+    history = [{"run_id": "20260623T000000Z-test", "result_count": 1}]
+    comparison = {"baseline_run_id": "baseline", "rows": []}
+    scheduler_status = {"source": "example", "profile_count": 1}
+    d = dashboard_data(
+        [_rec("proxy-cheap", "success", 100)],
+        {},
+        latest_manifest=manifest,
+        run_history=history,
+        selected_run_id="20260623T000000Z-test",
+        comparison=comparison,
+        scheduler_status=scheduler_status,
+    )
+
+    assert d["latest_manifest"] == manifest
+    assert d["run_history"] == history
+    assert d["selected_run_id"] == "20260623T000000Z-test"
+    assert d["comparison"] == comparison
+    assert d["scheduler_status"] == scheduler_status

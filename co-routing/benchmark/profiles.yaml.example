@@ -1,0 +1,26 @@
+# Hivewire scheduled benchmark profiles.
+#
+# Copy to benchmark/profiles.yaml and edit locally. The runner does not install
+# cron/launchd by itself; schedulers should call:
+#
+#   uv run python -m benchmark.runner --profile weekly-proxycheap-baseline
+
+profiles:
+  weekly-proxycheap-baseline:
+    cadence: weekly
+    weekday: 1     # launchd: 1 = Sunday, 2 = Monday, ...
+    hour: 3
+    minute: 0
+    description: Proxy-cheap control run for the moat evidence timeline.
+    config: targets.yaml
+    out: results.jsonl
+    archive_dir: runs
+
+  daily-smoke:
+    cadence: daily
+    hour: 7
+    minute: 30
+    description: Small daily smoke run; keep targets.yaml small before enabling.
+    config: targets.yaml
+    out: results.jsonl
+    archive_dir: runs

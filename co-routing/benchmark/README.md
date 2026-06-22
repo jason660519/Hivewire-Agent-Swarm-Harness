@@ -14,14 +14,62 @@ uv run python -m benchmark.metrics                         # aggregate report (t
 uv run python -m benchmark.report                          # -> benchmark/report.html (shareable)
 ```
 
+For repeatable scheduled runs, copy the profile example and invoke a named
+profile from your scheduler:
+
+```bash
+cp benchmark/profiles.yaml.example benchmark/profiles.yaml
+uv run python -m benchmark.runner --profile weekly-proxycheap-baseline
+```
+
+Profiles are intentionally declarative. They define cadence, config, output,
+and archive paths; cron, launchd, GitHub Actions, or another scheduler decides
+when to call the runner.
+
+On macOS, generate a launchd plist without installing it:
+
+```bash
+../setup_hivewire_benchmark_scheduler.sh
+```
+
+Or call the generator directly:
+
+```bash
+uv run python -m benchmark.scheduler \
+  --profile weekly-proxycheap-baseline \
+  --out ~/Library/LaunchAgents/com.hivewire.benchmark.weekly-proxycheap-baseline.plist
+```
+
+Inspect the plist first. If it looks right, install it manually:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.hivewire.benchmark.weekly-proxycheap-baseline.plist
+```
+
+From the repo root, the guarded install/uninstall wrappers are:
+
+```bash
+HIVEWIRE_CONFIRM_INSTALL=install ./install_hivewire_benchmark_scheduler.sh
+HIVEWIRE_CONFIRM_UNINSTALL=uninstall ./uninstall_hivewire_benchmark_scheduler.sh
+```
+
+Each runner execution also writes an evidence package:
+
+```text
+benchmark/runs/<run_id>/
+  manifest.json     # config/pricing hashes, timing, vendors, pools, outcomes
+  results.jsonl     # only the records produced by that execution
+  summary.json      # aggregate track metrics for that execution
+```
+
 `report.html` is one self-contained page (inline CSS + SVG, no external
 requests, aggregate numbers only — no individual IPs) you can open locally or
 publish on GitHub Pages. If the data came from mock pools, the page says so
 loudly so a mock run can't masquerade as a real benchmark.
 
 Default config runs against the built-in **mock pools** (direct connections, no
-credentials) so the plumbing is verifiable today. `results.jsonl` is gitignored
-(`*.jsonl`) — the dataset stays local.
+credentials) so the plumbing is verifiable today. `results.jsonl` and
+`benchmark/runs/` are gitignored — the dataset stays local.
 
 ## When real credentials land
 

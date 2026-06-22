@@ -50,7 +50,7 @@ changes to that runtime's code. The full harness below is roadmap.
 ```bash
 cd co-routing
 uv sync
-uv run pytest                                 # 63 tests, all offline
+uv run pytest                                 # 87 tests, all offline
 
 # The thesis in one run: ONE Route Profile drives both browse egress (A1) and
 # model egress (A2) — same region, same IP identity. No credentials, no API key.
@@ -101,16 +101,34 @@ wiring + verification process (and the gotchas) is in
 
 [`co-routing/benchmark/`](co-routing/benchmark/) measures egress
 success/block rate, latency, and cost per successful fetch across pools, appends
-each run to a jsonl dataset, and renders a self-contained HTML report (plus a
+each run to a jsonl dataset, writes a per-run evidence package under
+`benchmark/runs/<run_id>/`, and renders a self-contained HTML report (plus a
 live dashboard). Runs offline against the mock pools; swap in real pools to
 benchmark them under the identical methodology. See
-[benchmark/README.md](co-routing/benchmark/README.md).
+[benchmark/README.md](co-routing/benchmark/README.md) and
+[BENCHMARK_MOAT.md](BENCHMARK_MOAT.md).
 
 ```bash
 uv run python -m benchmark.runner      # run tracks -> results.jsonl
 uv run python -m benchmark.report      # -> report.html
 uv run python -m benchmark.dashboard   # live view at http://127.0.0.1:8799
 ```
+
+Run [`open_hivewire_console.sh`](open_hivewire_console.sh) from the repo root
+to start the local dashboard if needed and open the single-port home page at
+`http://127.0.0.1:8799/`. From there, use `/console` for the live operator
+console and `/benchmark` for the benchmark/moat evidence view. On macOS, the matching
+[`open_hivewire_console.command`](open_hivewire_console.command) delegates to
+the same script for double-click launching. Set `HIVEWIRE_CONSOLE_PORT=8800`
+before launching if you want a different port.
+
+To prepare the macOS benchmark scheduler without installing it, run
+[`setup_hivewire_benchmark_scheduler.sh`](setup_hivewire_benchmark_scheduler.sh).
+It copies the local profile file if needed and generates a launchd plist for
+inspection; you still install it manually with `launchctl bootstrap`.
+When ready, [`install_hivewire_benchmark_scheduler.sh`](install_hivewire_benchmark_scheduler.sh)
+and [`uninstall_hivewire_benchmark_scheduler.sh`](uninstall_hivewire_benchmark_scheduler.sh)
+wrap that final launchd step behind explicit confirmation environment variables.
 
 ## Full harness (roadmap — not yet in this repo)
 
@@ -147,7 +165,7 @@ Early / research preview (`0.0.1`).
 layer (`proxy_template`), an SSRF guard re-validated on every redirect hop, a
 working end-to-end MCP demo, and the A2 model-tier↔egress binding layer
 (`litellm_corouting.py`): build a LiteLLM `model_list` and route a tier's model
-calls through the same proxy pool as browsing. 43 tests, all offline.
+calls through the same proxy pool as browsing. 87 tests, all offline.
 
 > A2 caveat (verified against LiteLLM docs): LiteLLM binds proxies
 > **process-globally** (env vars or the global `aclient_session`), not

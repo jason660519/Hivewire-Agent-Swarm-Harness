@@ -28,6 +28,8 @@ from pathlib import Path
 
 import yaml
 
+from benchmark.evidence import utc_now, write_run_archive
+from benchmark.profiles import resolve_profile
 from litellm_corouting import egress_async_client
 from server import RouteProfile, SessionPolicy, _session_id_for, load_pools, resolve_proxy_url
 
@@ -208,17 +210,45 @@ def main() -> None:
     parser.add_argument(
         "config",
         nargs="?",
-        default=str(Path(__file__).parent / "targets.yaml"),
+        default=None,
         help="track config (default: benchmark/targets.yaml)",
     )
     parser.add_argument(
+        "--profile",
+        help="named run profile from benchmark/profiles.yaml",
+    )
+    parser.add_argument(
+        "--profiles",
+        default=str(Path(__file__).parent / "profiles.yaml"),
+        help="profiles file (default: benchmark/profiles.yaml)",
+    )
+    parser.add_argument(
         "--out",
-        default=str(Path(__file__).parent / "results.jsonl"),
+        default=None,
         help="jsonl results file (appended, default: benchmark/results.jsonl)",
+    )
+    parser.add_argument(
+        "--archive-dir",
+        default=None,
+        help="directory for per-run evidence packages (default: benchmark/runs)",
     )
     args = parser.parse_args()
 
-    config_path = Path(args.config)
+    profile = None
+    if args.profile:
+        profile = resolve_profile(Path(args.profiles), args.profile)
+        config_path = profile["config_path"]
+        out_path = Path(args.out) if args.out else profile["out_path"]
+        archive_dir = Path(args.archive_dir) if args.archive_dir else profile["archive_dir"]
+        print(
+            f"[benchmark] profile {profile['name']} "
+            f"({profile['cadence']}) — {profile.get('description') or 'no description'}"
+        )
+    else:
+        config_path = Path(args.config) if args.config else Path(__file__).parent / "targets.yaml"
+        out_path = Path(args.out) if args.out else Path(__file__).parent / "results.jsonl"
+        archive_dir = Path(args.archive_dir) if args.archive_dir else Path(__file__).parent / "runs"
+
     if not config_path.exists():
         raise SystemExit(
             f"{config_path} not found. Copy benchmark/targets.yaml.example to "
@@ -227,13 +257,26 @@ def main() -> None:
     with open(config_path) as fh:
         config = yaml.safe_load(fh)
 
-    out_path = Path(args.out)
+    started_at = utc_now()
     results = asyncio.run(run(config, out_path))
+    finished_at = utc_now()
+    result_dicts = [asdict(r) for r in results]
+    run_dir = write_run_archive(
+        config=config,
+        config_path=config_path,
+        pricing_path=Path(__file__).parent / "pricing.yaml",
+        out_path=out_path,
+        results=result_dicts,
+        archive_dir=archive_dir,
+        started_at=started_at,
+        finished_at=finished_at,
+    )
 
     by_outcome: dict[str, int] = {}
     for r in results:
         by_outcome[r.outcome] = by_outcome.get(r.outcome, 0) + 1
     print(f"[benchmark] {len(results)} runs -> {out_path}")
+    print(f"[benchmark] evidence archive -> {run_dir}")
     print(f"[benchmark] outcomes: {by_outcome}")
     print("[benchmark] aggregate report: uv run python -m benchmark.metrics --in", out_path)
 
