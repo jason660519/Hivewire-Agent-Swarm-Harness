@@ -189,9 +189,9 @@ calls through the same proxy pool as browsing. 87 tests, all offline.
 > A2 caveat (verified against LiteLLM docs): LiteLLM binds proxies
 > **process-globally** (env vars or the global `aclient_session`), not
 > per-deployment — so one tier↔region binding is per process. For concurrent
-> multi-region routing, run one router per region. See [`design.md`](design.md) §A2.
+> multi-region routing, run one router per region.
 
-**Designed, not yet built** (see [`design.md`](design.md)): the full harness —
+**Designed, not yet built**: the full harness —
 AG-UI event store with replay + fork, swarm, auto-reloading sandboxed
 extensions, cross-session memory, ACP adapter. These are the roadmap, not
 shipped here yet.
