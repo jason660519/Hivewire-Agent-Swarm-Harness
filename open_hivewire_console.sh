@@ -30,11 +30,20 @@ open_url() {
   fi
 }
 
-if server_ready; then
-  echo "Hivewire console server is already running on port $PORT."
-  open_url
-  echo "Opened $URL"
-  exit 0
+if command -v lsof >/dev/null 2>&1; then
+  EXISTING_PID=$(lsof -t -i :"$PORT" || true)
+  if [[ -n "$EXISTING_PID" ]]; then
+    echo "Port $PORT is already in use by process $EXISTING_PID. Killing it to start fresh..."
+    kill "$EXISTING_PID" >/dev/null 2>&1 || true
+    sleep 0.5
+  fi
+else
+  if server_ready; then
+    echo "Hivewire console server is already running on port $PORT."
+    open_url
+    echo "Opened $URL"
+    exit 0
+  fi
 fi
 
 echo "Starting Hivewire co-routing console on port $PORT..."

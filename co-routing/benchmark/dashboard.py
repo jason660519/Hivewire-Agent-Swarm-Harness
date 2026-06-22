@@ -37,6 +37,7 @@ def dashboard_data(
     run_history: list[dict] | None = None,
     selected_run_id: str | None = None,
     comparison: dict | None = None,
+    compare_records: list[dict] | None = None,
     scheduler_status: dict | None = None,
 ) -> dict:
     """Pure aggregation for the dashboard JSON — testable without a server."""
@@ -99,6 +100,7 @@ def dashboard_data(
         "run_history": run_history or [],
         "selected_run_id": selected_run_id,
         "comparison": comparison,
+        "compare_records": compare_records or [],
         "scheduler_status": scheduler_status,
         "recent": list(reversed(records[-12:])),
     }
@@ -111,151 +113,1210 @@ def console_page() -> str:
     dashboard and must not hard-code partner names, model names, or fake IPs.
     """
     return """<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hivewire Console — proxy-cheap baseline</title>
-<style>
-  :root{
-    --bg:#070b12;--panel:#0d1420;--panel2:#111b2a;--line:#223044;
-    --text:#dbe7f3;--muted:#7f91a8;--dim:#526174;--cyan:#22d3ee;
-    --green:#22c55e;--amber:#f59e0b;--red:#fb7185;--blue:#60a5fa;
-  }
-  *{box-sizing:border-box} body{margin:0;height:100vh;overflow:hidden;background:var(--bg);
-    color:var(--text);font:13px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-  button,select,textarea{font:inherit}
-  .shell{height:100vh;display:grid;grid-template-rows:58px minmax(0,1fr) 118px}
-  .top{display:grid;grid-template-columns:250px minmax(360px,1fr) 330px;gap:14px;align-items:center;
-    padding:10px 14px;border-bottom:1px solid var(--line);background:#09111d}
-  .brand{font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan)}
-  .sub{color:var(--muted);font-size:12px;margin-top:2px}
-  .nav{display:flex;gap:8px;margin-top:7px}.nav a{color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:7px;padding:3px 7px;font-size:11px}.nav a.active{color:var(--cyan);border-color:#164e63;background:#0b2531}
-  .route-strip{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:8px 12px;
-    display:flex;align-items:center;gap:10px;min-width:0}
-  .hop{white-space:nowrap}.hop strong{color:var(--text)}.arrow{color:var(--dim)}
-  .status-dot{width:8px;height:8px;border-radius:99px;background:var(--green);box-shadow:0 0 10px var(--green)}
-  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .metric{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 9px}
-  .label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
-  .value{font-weight:750;font-size:16px;font-variant-numeric:tabular-nums;margin-top:1px}
-  .workspace{display:grid;grid-template-columns:240px minmax(0,1fr) 350px;min-height:0}
-  aside,.inspector{background:var(--panel);border-right:1px solid var(--line);min-height:0;overflow:auto}
-  .inspector{border-right:0;border-left:1px solid var(--line)}
-  .pane-title{padding:12px 14px;border-bottom:1px solid var(--line);font-size:11px;color:var(--muted);
-    text-transform:uppercase;letter-spacing:.08em;font-weight:700}
-  .side-section{padding:12px 10px}.side-heading{color:var(--muted);font-size:10px;text-transform:uppercase;margin:8px 4px}
-  .vendor-row,.session-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;
-    border-radius:7px;color:var(--text)}
-  .vendor-row.active,.session-row.active{background:var(--panel2);outline:1px solid #1f3a52}
-  .pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:99px;
-    padding:2px 7px;color:var(--muted);font-size:11px}
-  .main{min-width:0;min-height:0;overflow:auto;background:linear-gradient(180deg,#080d16,#090d14)}
-  .toolbar{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;padding:10px 14px;
-    border-bottom:1px solid var(--line);background:rgba(8,13,22,.92);backdrop-filter:blur(8px)}
-  .tab{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:7px;padding:6px 10px;cursor:pointer}
-  .tab.active{background:#0b2531;color:var(--cyan);border-color:#164e63}
-  .timeline{padding:16px;display:grid;gap:12px}
-  .lane{border:1px solid var(--line);border-radius:9px;background:rgba(13,20,32,.72);padding:12px}
-  .lane-head{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
-  .events{display:flex;gap:10px;overflow:auto;padding-bottom:4px}
-  .event{min-width:210px;max-width:250px;text-align:left;border:1px solid var(--line);border-left:3px solid var(--green);
-    background:#0b1220;color:var(--text);border-radius:8px;padding:10px;cursor:pointer}
-  .event.blocked{border-left-color:var(--amber)}.event.error{border-left-color:var(--red)}
-  .event.active{outline:2px solid rgba(34,211,238,.45)}
-  .event-type{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
-  .event-title{font-weight:700;margin:4px 0}.event-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
-  .route-map{display:none;padding:16px}.route-map.active{display:block}.map-card{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px}
-  .node{fill:#0f172a;stroke:#24435a;stroke-width:2}.node-live{stroke:var(--cyan)}.node-text{fill:var(--text);font-size:12px;font-weight:700}.edge{stroke:#31506a;stroke-width:2;stroke-dasharray:7 7}
-  .inspector-body{padding:14px}.empty{color:var(--muted);text-align:center;margin-top:40px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}.kv{border:1px solid var(--line);border-radius:7px;padding:8px;background:#0a111c}
-  pre{white-space:pre-wrap;word-break:break-word;border:1px solid var(--line);background:#060a11;border-radius:8px;padding:10px;color:#bfdbfe;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-  .composer{border-top:1px solid var(--line);background:#09111d;padding:10px 14px;display:grid;grid-template-columns:260px minmax(0,1fr) 160px;gap:12px}
-  .modes{display:flex;gap:6px;align-items:flex-start}.mode{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:7px;padding:7px 9px;cursor:pointer}
-  .mode.active{color:var(--cyan);border-color:#164e63;background:#0b2531}
-  textarea{width:100%;height:78px;resize:none;border:1px solid var(--line);background:#060a11;color:var(--text);border-radius:8px;padding:10px}
-  .send{border:1px solid #155e75;background:#0b2531;color:var(--cyan);border-radius:8px;font-weight:750;cursor:pointer}
-  @media (max-width:1050px){.top{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .workspace{grid-template-columns:190px minmax(0,1fr)}.inspector{display:none}.composer{grid-template-columns:1fr}}
-</style></head><body>
-<div class="shell">
-  <header class="top">
-    <div><div class="brand">Hivewire Console</div><div class="sub" id="subtitle">proxy-cheap baseline · loading data</div><nav class="nav"><a class="active" href="/console">Console</a><a href="/benchmark">Benchmark</a></nav></div>
-    <div class="route-strip" aria-label="Current route profile">
-      <span class="status-dot"></span><span class="hop"><strong id="modelTier">model tier</strong></span>
-      <span class="arrow">--></span><span class="hop"><strong id="egressPool">egress pool</strong></span>
-      <span class="arrow">--></span><span class="hop" id="observedIp">observed IP pending</span>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hivewire Operations Console</title>
+  <!-- Local Typography Fallback -->
+  
+  <style>
+    :root {
+      --bg-dark: #070a13;
+      --bg-panel: rgba(13, 20, 32, 0.7);
+      --bg-active: rgba(31, 41, 55, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-active: rgba(255, 255, 255, 0.15);
+      --text-main: #e2e8f0;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      
+      --color-emerald: #10b981;
+      --color-emerald-bg: rgba(16, 185, 129, 0.1);
+      --color-amber: #f59e0b;
+      --color-amber-bg: rgba(245, 158, 11, 0.1);
+      --color-rose: #f43f5e;
+      --color-rose-bg: rgba(244, 63, 94, 0.1);
+      --color-cyan: #06b6d4;
+      --color-cyan-bg: rgba(6, 182, 212, 0.1);
+      --color-indigo: #6366f1;
+      --color-indigo-bg: rgba(99, 102, 241, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 400px),
+                        radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.03), transparent 300px);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Top Bar */
+    .top-bar {
+      height: 56px;
+      border-bottom: 1px solid var(--border-color);
+      display: grid;
+      grid-template-columns: 240px 1fr auto;
+      align-items: center;
+      padding: 0 16px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #06b6d4, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .logo::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #06b6d4;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #06b6d4;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 6px;
+      margin-left: 8px;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .nav-links a.active {
+      color: var(--color-cyan);
+      background: rgba(6, 182, 212, 0.08);
+      border-color: rgba(6, 182, 212, 0.15);
+    }
+
+    /* Egress Circuit Header (Option A) */
+    .egress-circuit {
+      justify-self: center;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      max-width: 95%;
+      overflow: hidden;
+    }
+
+    .circuit-node {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 4px;
+    }
+    
+    .circuit-node.model { color: var(--color-cyan); }
+    .circuit-node.egress { color: var(--color-indigo); }
+    .circuit-node.ip { color: var(--text-main); font-weight: 500; }
+    
+    .circuit-arrow {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--color-emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--color-emerald);
+    }
+
+    .global-metrics {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+    }
+
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .metric-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Layout Wrapper */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 240px 1fr 340px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Sidebar: Session Tree */
+    aside {
+      border-right: 1px solid var(--border-color);
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .list-heading {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin: 12px 4px 6px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .selector-block {
+      padding: 6px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      margin-bottom: 8px;
+    }
+
+    .selector-block label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      padding: 5px 8px;
+      font-size: 11px;
+      outline: none;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    select:focus {
+      border-color: var(--color-cyan);
+    }
+
+    .vendor-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+      border: 1px solid transparent;
+    }
+
+    .vendor-row.active {
+      background: var(--bg-active);
+      color: var(--text-main);
+      border-color: rgba(255,255,255,0.03);
+    }
+
+    .pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* Main Area */
+    .main-viewport {
+      display: flex;
+      flex-direction: column;
+      background: #090c14;
+      overflow: hidden;
+    }
+
+    .view-toolbar {
+      height: 40px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(13, 20, 32, 0.4);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-btn.active {
+      color: var(--color-cyan);
+      background: rgba(6, 182, 212, 0.08);
+      border: 1px solid rgba(6, 182, 212, 0.15);
+    }
+
+    .view-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: none;
+    }
+
+    .view-panel.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Option B: Chronological Swimlanes */
+    .timeline-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .lane {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .lane-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .lane-events {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    /* Event Card Node */
+    .event-card {
+      background: rgba(13, 20, 32, 0.85);
+      border: 1px solid var(--border-color);
+      border-left: 3px solid var(--color-emerald);
+      border-radius: 6px;
+      padding: 8px 12px;
+      min-width: 190px;
+      max-width: 240px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 11px;
+      flex-shrink: 0;
+      text-align: left;
+    }
+
+    .event-card.success { border-left-color: var(--color-emerald); }
+    .event-card.blocked { border-left-color: var(--color-amber); }
+    .event-card.error { border-left-color: var(--color-rose); }
+
+    .event-card:hover {
+      border-color: var(--border-active);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .event-card.active {
+      border-color: var(--color-cyan);
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.25);
+    }
+
+    .event-type {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .event-title {
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .event-meta {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    /* Option B: Overlay Timeline Fork Diff view */
+    .diff-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 8px 0;
+    }
+
+    .diff-row {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      position: relative;
+    }
+
+    .diff-row.winner {
+      border-color: rgba(16, 185, 129, 0.2);
+      background: rgba(16, 185, 129, 0.015);
+    }
+
+    .diff-row-label {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text-dim);
+      border-right: 1px dashed var(--border-color);
+      padding-right: 12px;
+    }
+
+    .diff-row-events {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-left: 16px;
+    }
+
+    .diff-badge {
+      display: inline-block;
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+    .diff-badge.better { background: var(--color-emerald-bg); color: var(--color-emerald); }
+    .diff-badge.worse { background: var(--color-rose-bg); color: var(--color-rose); }
+
+    /* Option A: Route Map Panel */
+    .route-map-panel {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 16px;
+      position: relative;
+    }
+
+    .map-svg-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .map-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(11, 15, 25, 0.9);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 11px;
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+      width: 240px;
+    }
+
+    .map-overlay-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .map-overlay-row span:first-child { color: var(--text-muted); }
+    .map-overlay-row span:last-child { font-family: 'JetBrains Mono', monospace; color: var(--text-main); }
+
+    /* SVG Map node styles */
+    .map-node { fill: #0f172a; stroke: #223044; stroke-width: 2; }
+    .map-node.active { stroke: var(--color-cyan); filter: drop-shadow(0 0 4px var(--color-cyan)); }
+    .map-node-text { fill: var(--text-main); font-size: 11px; font-weight: 600; }
+    .map-edge { stroke: #223044; stroke-width: 2; stroke-dasharray: 6 6; }
+    .map-edge.active { stroke: var(--color-cyan); stroke-dasharray: 10 100; stroke-dashoffset: 0; }
+
+    /* Right Inspector */
+    .inspector {
+      border-left: 1px solid var(--border-color);
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .inspector-header {
+      height: 40px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+    }
+
+    .inspector-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .inspector-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .inspector-section-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 700;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      padding-bottom: 3px;
+    }
+
+    .inspector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .inspector-kv {
+      background: rgba(0,0,0,0.15);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px;
+    }
+
+    .inspector-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .inspector-value {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-main);
+    }
+
+    pre {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #93c5fd;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 280px;
+    }
+
+    /* Option B: Bottom Command Composer */
+    .composer-panel {
+      height: 118px;
+      border-top: 1px solid var(--border-color);
+      background: #09111d;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 240px 1fr 140px;
+      gap: 16px;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .composer-modes {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .composer-mode-btn {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 5px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .composer-mode-btn.active {
+      color: var(--color-cyan);
+      border-color: rgba(6, 182, 212, 0.25);
+      background: rgba(6, 182, 212, 0.08);
+      box-shadow: inset 0 0 4px rgba(6, 182, 212, 0.1);
+    }
+
+    .composer-input-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .composer-textarea {
+      width: 100%;
+      height: 60px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 8px 12px;
+      outline: none;
+      resize: none;
+    }
+    .composer-textarea:focus {
+      border-color: var(--color-cyan);
+    }
+
+    .composer-meta-selectors {
+      display: flex;
+      gap: 8px;
+    }
+
+    .composer-select {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border-color);
+      color: var(--text-dim);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      width: auto;
+    }
+
+    .composer-send-btn {
+      height: 48px;
+      background: rgba(6, 182, 212, 0.08);
+      color: var(--color-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .composer-send-btn:hover {
+      background: var(--color-cyan);
+      color: var(--bg-dark);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+    }
+
+    .empty-state {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 40px 0;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="brand-section">
+      <div class="logo">Hivewire Operations</div>
+      <div class="nav-links">
+        <a class="active" href="/console">Console</a>
+        <a href="/benchmark">Benchmark</a>
+      </div>
     </div>
-    <div class="metrics">
-      <div class="metric"><div class="label">Runs</div><div class="value" id="runCount">--</div></div>
-      <div class="metric"><div class="label">Spend est.</div><div class="value" id="spend">--</div></div>
-      <div class="metric"><div class="label">Success</div><div class="value" id="success">--</div></div>
+
+    <!-- Option A: Co-routing & Egress Hop Circuit -->
+    <div class="egress-circuit">
+      <div class="status-dot"></div>
+      <span class="circuit-node model" id="modelTier">web_fetch</span>
+      <span class="circuit-arrow">──(rotating)──></span>
+      <span class="circuit-node egress" id="egressPool">proxy-cheap</span>
+      <span class="circuit-arrow">──></span>
+      <span class="circuit-node ip" id="observedIp">observed IP pending</span>
+    </div>
+
+    <div class="global-metrics">
+      <div class="metric-item">
+        <span class="metric-label">Runs</span>
+        <span class="metric-value" id="runCount">--</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">Spend est.</span>
+        <span class="metric-value" id="spend" style="color: var(--color-emerald);">--</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">Success</span>
+        <span class="metric-value" id="success">--</span>
+      </div>
     </div>
   </header>
-  <div class="workspace">
-    <aside><div class="pane-title">Sessions & egress</div><div class="side-section">
-      <div class="side-heading">Current baseline</div>
-      <div class="session-row active"><span>proxy-cheap rotating</span><span class="pill">real</span></div>
-      <div class="side-heading">Vendors</div><div id="vendors"></div>
-    </div></aside>
-    <main class="main">
-      <div class="toolbar">
-        <button class="tab active" data-view="timeline">Live timeline</button>
-        <button class="tab" data-view="route">Egress route</button>
+
+  <!-- Workspace Grid Layout -->
+  <main class="workspace">
+
+    <!-- Left Sidebar: Session Selectors -->
+    <aside>
+      <div class="sidebar-header">
+        <span class="sidebar-title">Sessions & History</span>
       </div>
-      <section id="timeline" class="timeline"></section>
-      <section id="route" class="route-map"><div class="map-card">
-        <svg viewBox="0 0 760 260" width="100%" height="260" role="img" aria-label="Egress route diagram">
-          <line class="edge" x1="150" y1="130" x2="370" y2="130"/><line class="edge" x1="430" y1="130" x2="650" y2="130"/>
-          <circle class="node node-live" cx="110" cy="130" r="44"/><circle class="node node-live" cx="400" cy="130" r="52"/><circle class="node" cx="690" cy="130" r="44"/>
-          <text class="node-text" x="110" y="125" text-anchor="middle">Agent</text><text class="node-text" x="110" y="143" text-anchor="middle">tool call</text>
-          <text class="node-text" x="400" y="125" text-anchor="middle" id="mapPool">proxy-cheap</text><text class="node-text" x="400" y="143" text-anchor="middle" id="mapPolicy">rotating</text>
-          <text class="node-text" x="690" y="125" text-anchor="middle">Target</text><text class="node-text" x="690" y="143" text-anchor="middle" id="mapTarget">latest</text>
-        </svg>
-      </div></section>
-    </main>
-    <aside class="inspector"><div class="pane-title">Event inspector</div><div class="inspector-body" id="inspector"><div class="empty">Select a timeline event to inspect its real JSONL record.</div></div></aside>
-  </div>
-  <footer class="composer">
-    <div class="modes"><button class="mode active" data-mode="steer">Steer</button><button class="mode" data-mode="follow">Follow-up</button><button class="mode" data-mode="fork">Fork from event</button></div>
-    <textarea id="composer" placeholder="Steer the current run. This prototype does not submit yet."></textarea>
-    <button class="send" type="button">Preview only</button>
+      <div class="sidebar-content">
+        
+        <div class="selector-block">
+          <label for="runSelector">Active Run</label>
+          <select id="runSelector">
+            <option value="">Live accumulated dataset</option>
+          </select>
+        </div>
+
+        <div class="selector-block">
+          <label for="compareSelector">Compare Against</label>
+          <select id="compareSelector">
+            <option value="">No comparison</option>
+          </select>
+        </div>
+
+        <div class="list-heading">Current baseline</div>
+        <div class="vendor-row active">
+          <span>proxy-cheap rotating</span>
+          <span class="pill">Real</span>
+        </div>
+
+        <div class="list-heading">Vendors</div>
+        <div id="vendors"></div>
+
+      </div>
+    </aside>
+
+    <!-- Center Main Viewport -->
+    <section class="main-viewport">
+      <!-- Toolbar Tabs -->
+      <div class="view-toolbar">
+        <button class="tab-btn active" onclick="switchView('timeline')">Live swarm timeline</button>
+        <button class="tab-btn" onclick="switchView('diff')">Overlay Fork Diff</button>
+        <button class="tab-btn" onclick="switchView('route')">Egress route map</button>
+      </div>
+
+      <!-- Live Timeline -->
+      <div id="timeline" class="view-panel active">
+        <div class="timeline-container" id="timelineContainer">
+          <div class="empty-state">Loading live timeline events...</div>
+        </div>
+      </div>
+
+      <!-- Overlay Fork Diff Timeline -->
+      <div id="diff" class="view-panel">
+        <div class="diff-container" id="diffContainer">
+          <div class="empty-state">Select a run in "Compare Against" to view overlay fork timelines.</div>
+        </div>
+      </div>
+
+      <!-- Egress Route Map (Option A) -->
+      <div id="route" class="view-panel">
+        <div class="route-map-panel">
+          <div class="map-svg-wrap">
+            <svg viewBox="0 0 700 240" width="100%" height="240">
+              <!-- Grid Pattern -->
+              <defs>
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.015)" stroke-width="1"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+
+              <!-- Connection Hops -->
+              <path class="map-edge active" x1="120" y1="120" x2="350" y2="120" d="M 120 120 L 350 120" stroke-width="2" />
+              <path class="map-edge active" x1="350" y1="120" x2="580" y2="120" d="M 350 120 L 580 120" stroke-width="2">
+                <animate attributeName="stroke-dashoffset" values="100;0" dur="5s" repeatCount="indefinite" />
+              </path>
+
+              <!-- Node 1: Client Host -->
+              <g transform="translate(120, 120)">
+                <circle class="map-node active" r="28" fill="rgba(6, 182, 212, 0.08)" />
+                <circle r="4" fill="var(--color-cyan)" />
+                <text class="map-node-text" y="44" text-anchor="middle">Agent Client</text>
+                <text y="58" text-anchor="middle" fill="var(--text-muted)" font-size="9" font-family="'JetBrains Mono', monospace">process</text>
+              </g>
+
+              <!-- Node 2: Egress Proxy Pool -->
+              <g transform="translate(350, 120)">
+                <circle class="map-node active" r="34" fill="rgba(99, 102, 241, 0.08)" />
+                <circle r="4" fill="var(--color-indigo)" />
+                <text class="map-node-text" y="48" text-anchor="middle" id="mapPool">proxy-cheap</text>
+                <text y="62" text-anchor="middle" fill="var(--text-muted)" font-size="9" font-family="'JetBrains Mono', monospace" id="mapPolicy">rotating</text>
+              </g>
+
+              <!-- Node 3: Target Server -->
+              <g transform="translate(580, 120)">
+                <circle class="map-node" r="28" fill="rgba(255,255,255,0.01)" />
+                <circle r="4" fill="var(--text-muted)" />
+                <text class="map-node-text" y="44" text-anchor="middle">Destination</text>
+                <text y="58" text-anchor="middle" fill="var(--text-muted)" font-size="9" font-family="'JetBrains Mono', monospace" id="mapTarget">latest</text>
+              </g>
+            </svg>
+
+            <!-- Geolocation Information Overlay -->
+            <div class="map-overlay">
+              <h4 style="color: var(--color-cyan); margin-bottom: 8px; font-size: 10px; text-transform: uppercase;">Egress Telemetry</h4>
+              <div class="map-overlay-row">
+                <span>Egress Pool</span>
+                <span id="overlayPool">proxy-cheap</span>
+              </div>
+              <div class="map-overlay-row">
+                <span>Observed IP</span>
+                <span id="overlayIp">pending</span>
+              </div>
+              <div class="map-overlay-row">
+                <span>Latency</span>
+                <span id="overlayLatency">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Inspector Panel -->
+    <aside class="inspector">
+      <div class="inspector-header">
+        <span class="inspector-title">Event Tracer</span>
+      </div>
+      <div class="inspector-content" id="inspectorContent">
+        <div class="empty-state">Select a timeline card to view traces.</div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Bottom Command Composer (Option B) -->
+  <footer class="composer-panel">
+    <div class="composer-modes">
+      <button class="composer-mode-btn active" id="modeSteerBtn" onclick="setComposerMode('steer')">⚡ Steer current run</button>
+      <button class="composer-mode-btn" id="modeFollowBtn" onclick="setComposerMode('follow')">⏱ Queue follow-up</button>
+      <button class="composer-mode-btn" id="modeForkBtn" onclick="setComposerMode('fork')">🔁 Fork from event</button>
+    </div>
+
+    <div class="composer-input-row">
+      <textarea class="composer-textarea" id="composerInput" placeholder="Intervene/steer the current running swarm agent..."></textarea>
+      <div class="composer-meta-selectors">
+        <select class="composer-select" id="composerModel">
+          <option value="smart">Smart Tier</option>
+          <option value="cheap">Cheap Tier</option>
+        </select>
+        <select class="composer-select" id="composerProxy">
+          <option value="us">Proxy: US-West rotating</option>
+          <option value="eu">Proxy: EU-Central sticky</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="composer-send-btn" type="button" onclick="alert('Simulation: command queued to Hivewire harness control loop.')">
+      Send Command
+    </button>
   </footer>
-</div>
-<script>
-const $=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const pct=x=>x==null?'--':Math.round(x*100)+'%';
-const usd=x=>x==null?'--':'$'+Number(x).toFixed(4);
-let selectedRecord=null;
-function inspect(r, btn){
-  selectedRecord=r; document.querySelectorAll('.event').forEach(e=>e.classList.remove('active')); if(btn) btn.classList.add('active');
-  $('inspector').innerHTML=`<h3>${esc(r.outcome)} · ${esc(r.target_class)}</h3>
-    <div class="grid">
-      <div class="kv"><div class="label">Vendor</div><div>${esc(r.vendor)}</div></div>
-      <div class="kv"><div class="label">Pool</div><div>${esc(r.pool)}</div></div>
-      <div class="kv"><div class="label">Latency</div><div>${r.latency_ms!=null?Number(r.latency_ms).toFixed(0)+'ms':'--'}</div></div>
-      <div class="kv"><div class="label">Observed IP</div><div>${esc(r.observed_ip||'not recorded')}</div></div>
-    </div><div class="label">Raw JSONL record</div><pre>${esc(JSON.stringify(r,null,2))}</pre>`;
-}
-function render(d){
-  const recent=d.recent||[], newest=recent[0]||{}, vendor=(d.vendors||[])[0]||{};
-  $('subtitle').textContent=`${d.total_runs} runs · updates every 2s · data from results.jsonl`;
-  $('runCount').textContent=d.total_runs??0; $('spend').textContent=d.has_pricing?usd(d.total_spend_usd):'--'; $('success').textContent=pct(vendor.success_rate);
-  $('modelTier').textContent='web_fetch'; $('egressPool').textContent=newest.pool||vendor.vendor||'proxy-cheap'; $('observedIp').textContent=newest.observed_ip||'observed IP not recorded';
-  $('mapPool').textContent=(newest.vendor||'proxy-cheap').slice(0,18); $('mapPolicy').textContent=newest.session_policy||'rotating'; $('mapTarget').textContent=(newest.target_class||'latest').slice(0,18);
-  $('vendors').innerHTML=(d.vendors||[]).map(v=>`<div class="vendor-row ${v.vendor===vendor.vendor?'active':''}"><span>${esc(v.vendor)}</span><span class="pill">${v.runs} runs · ${pct(v.success_rate)}</span></div>`).join('');
-  const byLane={};
-  recent.forEach(r=>{ const k=r.target_class||'unknown'; (byLane[k] ||= []).push(r); });
-  $('timeline').innerHTML=Object.entries(byLane).map(([lane,items])=>`<div class="lane"><div class="lane-head"><span>${esc(lane)}</span><span>${items.length} recent</span></div><div class="events">${
-    items.map((r,i)=>`<button class="event ${esc(r.outcome)}" data-lane="${esc(lane)}" data-index="${i}"><div class="event-type">${esc(r.vendor)} · ${esc(r.pool||'pool')}</div><div class="event-title">${esc(r.outcome)} · ${esc(r.status_code??'--')}</div><div class="event-meta"><span>${r.latency_ms!=null?Number(r.latency_ms).toFixed(0)+'ms':'--'}</span><span>${esc(r.session_policy||'')}</span></div></button>`).join('')
-  }</div></div>`).join('') || '<div class="empty">No benchmark records yet.</div>';
-  document.querySelectorAll('.event').forEach(btn=>btn.addEventListener('click',()=>inspect(byLane[btn.dataset.lane][Number(btn.dataset.index)],btn)));
-  if(!selectedRecord && recent[0]) inspect(recent[0], document.querySelector('.event'));
-}
-async function tick(){ try{ const d=await (await fetch('/data')).json(); render(d); }catch(e){ $('subtitle').textContent='Unable to load /data'; } }
-document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); $('timeline').style.display=btn.dataset.view==='timeline'?'grid':'none'; $('route').classList.toggle('active',btn.dataset.view==='route'); }));
-document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.mode').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); const m=btn.dataset.mode; $('composer').placeholder=m==='fork'?'Fork from the selected event and choose a new route profile.':m==='follow'?'Queue a follow-up after the current run finishes.':'Steer the current run. This prototype does not submit yet.'; }));
-tick(); setInterval(tick,2000);
-</script></body></html>"""
+
+  <script>
+    const $=id=>document.getElementById(id);
+    const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const pct=x=>x==null?'--':Math.round(x*100)+'%';
+    const usd=x=>x==null?'--':'$'+Number(x).toFixed(4);
+
+    let selectedRecord = null;
+    let selectedRunId = '';
+    let compareRunId = '';
+
+    // Switch Composer Modes
+    function setComposerMode(mode) {
+      document.querySelectorAll('.composer-mode-btn').forEach(btn => btn.classList.remove('active'));
+      const text = $('composerInput');
+      if (mode === 'steer') {
+        $('modeSteerBtn').classList.add('active');
+        text.placeholder = "Intervene/steer the current running swarm agent...";
+      } else if (mode === 'follow') {
+        $('modeFollowBtn').classList.add('active');
+        text.placeholder = "Queue a follow-up action for after the active run completes...";
+      } else if (mode === 'fork') {
+        $('modeForkBtn').classList.add('active');
+        text.placeholder = "Create a new session fork from the selected timeline event...";
+      }
+    }
+
+    // Switch Center view tabs
+    function switchView(viewId) {
+      document.querySelectorAll('.view-panel').forEach(panel => panel.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      
+      $(viewId).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // Load Inspector
+    function inspect(r) {
+      selectedRecord = r;
+      document.querySelectorAll('.event-card').forEach(card => card.classList.remove('active'));
+      
+      // Find and add active class to clicked cards in timeline
+      const cards = document.querySelectorAll(`[data-id="${r.timestamp}_${r.latency_ms}"]`);
+      cards.forEach(c => c.classList.add('active'));
+
+      $('inspectorContent').innerHTML = `
+        <div style="margin-bottom: 16px;">
+          <h3 style="font-size: 13px; font-weight: 700; margin-bottom: 2px;">${esc(r.outcome.toUpperCase())} · ${esc(r.target_class)}</h3>
+          <span class="pill">${esc(r.vendor)}</span>
+        </div>
+
+        <div class="inspector-section-title">Telemetry metrics</div>
+        <div class="inspector-grid">
+          <div class="inspector-kv">
+            <div class="inspector-label">Latency</div>
+            <div class="inspector-value" style="color: var(--color-cyan);">${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</div>
+          </div>
+          <div class="inspector-kv">
+            <div class="inspector-label">Status Code</div>
+            <div class="inspector-value">${r.status_code ?? '--'}</div>
+          </div>
+          <div class="inspector-kv">
+            <div class="inspector-label">Egress pool</div>
+            <div class="inspector-value" style="color: var(--color-indigo);">${esc(r.pool || 'default')}</div>
+          </div>
+          <div class="inspector-kv">
+            <div class="inspector-label">Egress IP</div>
+            <div class="inspector-value">${esc(r.observed_ip || 'not recorded')}</div>
+          </div>
+        </div>
+
+        <div class="inspector-section-title">Egress session policy</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-bottom: 16px; color: var(--text-dim);">
+          Session Policy: ${esc(r.session_policy || 'rotating')}
+        </div>
+
+        <div class="inspector-section-title">Raw JSONL tracing record</div>
+        <pre>${esc(JSON.stringify(r, null, 2))}</pre>
+
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button class="composer-send-btn" style="flex: 1; height: 32px;" onclick="alert('Forking branch from this checkpoint...')">Fork From Here</button>
+          <button class="composer-send-btn" style="flex: 1; height: 32px; background: transparent; border-color: var(--border-color); color: var(--text-dim);" onclick="alert('Replaying event trace...')">Replay Node</button>
+        </div>
+      `;
+    }
+
+    // Render console updates
+    function render(d) {
+      const recent = d.recent || [];
+      const newest = recent[0] || {};
+      const vendors = d.vendors || [];
+      const primaryVendor = vendors[0] || {};
+      const runHistory = d.run_history || [];
+
+      // Global circuit strip updates (Option A)
+      $('runCount').textContent = d.total_runs ?? 0;
+      $('spend').textContent = d.has_pricing ? usd(d.total_spend_usd) : '--';
+      $('success').textContent = pct(primaryVendor.success_rate);
+
+      $('egressPool').textContent = newest.pool || primaryVendor.vendor || 'proxy-cheap';
+      $('observedIp').textContent = newest.observed_ip || 'observed IP not recorded';
+      
+      // Update interactive SVG Map elements
+      $('mapPool').textContent = (newest.vendor || 'proxy-cheap').slice(0, 18);
+      $('mapPolicy').textContent = newest.session_policy || 'rotating';
+      $('mapTarget').textContent = (newest.target_class || 'latest').slice(0, 18);
+
+      $('overlayPool').textContent = newest.pool || newest.vendor || 'proxy-cheap';
+      $('overlayIp').textContent = newest.observed_ip || 'pending';
+      $('overlayLatency').textContent = newest.latency_ms != null ? newest.latency_ms.toFixed(0) + 'ms' : '--';
+
+      // Dropdown Populators
+      if ($('runSelector').options.length <= 1) {
+        $('runSelector').innerHTML = '<option value="">Live accumulated dataset</option>' + 
+          runHistory.map(r => `<option value="${esc(r.run_id)}">${esc(r.run_id)} · ${r.result_count} records</option>`).join('');
+        $('runSelector').value = d.selected_run_id || selectedRunId || '';
+      }
+      
+      if ($('compareSelector').options.length <= 1) {
+        $('compareSelector').innerHTML = '<option value="">No comparison</option>' + 
+          runHistory.map(r => `<option value="${esc(r.run_id)}">${esc(r.run_id)} · ${r.result_count} records</option>`).join('');
+        $('compareSelector').value = compareRunId || '';
+      }
+
+      // Populate left vendors list
+      $('vendors').innerHTML = vendors.map(v => `
+        <div class="vendor-row ${v.vendor === primaryVendor.vendor ? 'active' : ''}">
+          <span>${esc(v.vendor)}</span>
+          <span class="pill">${v.runs} runs · ${pct(v.success_rate)}</span>
+        </div>
+      `).join('');
+
+      // Render standard Swimlanes timeline (grouped by target_class)
+      const byLane = {};
+      recent.forEach(r => {
+        const k = r.target_class || 'unknown';
+        (byLane[k] ||= []).push(r);
+      });
+
+      $('timelineContainer').innerHTML = Object.entries(byLane).map(([lane, items]) => `
+        <div class="lane">
+          <div class="lane-head">
+            <span>Swarm Lane: ${esc(lane)}</span>
+            <span>${items.length} records</span>
+          </div>
+          <div class="lane-events">
+            ${items.map(r => {
+              const uId = `${r.timestamp}_${r.latency_ms}`;
+              return `
+                <div class="event-card ${esc(r.outcome)}" data-id="${uId}" onclick='inspect(${JSON.stringify(r)})'>
+                  <div class="event-type">${esc(r.vendor)} · ${esc(r.pool || 'pool')}</div>
+                  <div class="event-title">${esc(r.outcome.toUpperCase())} · ${r.status_code ?? '--'}</div>
+                  <div class="event-meta">
+                    <span>${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
+                    <span>${esc(r.session_policy || 'rotating')}</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('') || '<div class="empty-state">No timeline logs recorded yet. Run benchmark to stream events.</div>';
+
+      // Option B: Render Parallel Overlay Timeline Diff
+      const compRecords = d.compare_records || [];
+      if (compareRunId && compRecords.length > 0) {
+        // Group compared records by target class
+        const compByLane = {};
+        compRecords.forEach(r => {
+          const k = r.target_class || 'unknown';
+          (compByLane[k] ||= []).push(r);
+        });
+
+        // Generate combined overlay track view
+        const allLanes = Array.from(new Set([...Object.keys(byLane), ...Object.keys(compByLane)]));
+        
+        $('diffContainer').innerHTML = allLanes.map(lane => {
+          const currentEvents = byLane[lane] || [];
+          const comparedEvents = compByLane[lane] || [];
+          
+          // Simple heuristic to highlight winner based on success rate
+          const curSuccess = currentEvents.filter(x => x.outcome === 'success').length / (currentEvents.length || 1);
+          const compSuccess = comparedEvents.filter(x => x.outcome === 'success').length / (comparedEvents.length || 1);
+          
+          const isCurrentWinner = curSuccess >= compSuccess;
+          
+          return `
+            <div style="margin-bottom: 24px;">
+              <h4 style="font-size: 11px; text-transform: uppercase; color: var(--color-cyan); margin-bottom: 8px;">Swimlane: ${esc(lane)}</h4>
+              <div class="diff-container">
+                <!-- Track A: Current Run -->
+                <div class="diff-row ${isCurrentWinner ? 'winner' : ''}">
+                  <div class="diff-row-label">
+                    <div>Current Run</div>
+                    <span class="diff-badge ${isCurrentWinner ? 'better' : 'worse'}">
+                      ${pct(curSuccess)} Success
+                    </span>
+                  </div>
+                  <div class="diff-row-events">
+                    ${currentEvents.map(r => `
+                      <div class="event-card ${esc(r.outcome)}" data-id="${r.timestamp}_${r.latency_ms}" onclick='inspect(${JSON.stringify(r)})'>
+                        <div class="event-type">${esc(r.vendor)}</div>
+                        <div class="event-title">${esc(r.outcome.toUpperCase())}</div>
+                        <div class="event-meta">
+                          <span>${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
+                        </div>
+                      </div>
+                    `).join('') || '<div class="empty-state" style="padding: 0;">No events in this lane</div>'}
+                  </div>
+                </div>
+
+                <!-- Track B: Compared Run -->
+                <div class="diff-row ${!isCurrentWinner ? 'winner' : ''}">
+                  <div class="diff-row-label">
+                    <div>Compared Run</div>
+                    <span class="diff-badge ${!isCurrentWinner ? 'better' : 'worse'}">
+                      ${pct(compSuccess)} Success
+                    </span>
+                  </div>
+                  <div class="diff-row-events">
+                    ${comparedEvents.map(r => `
+                      <div class="event-card ${esc(r.outcome)}" onclick='inspect(${JSON.stringify(r)})'>
+                        <div class="event-type">${esc(r.vendor)}</div>
+                        <div class="event-title">${esc(r.outcome.toUpperCase())}</div>
+                        <div class="event-meta">
+                          <span>${r.latency_ms != null ? Number(r.latency_ms).toFixed(0) + 'ms' : '--'}</span>
+                        </div>
+                      </div>
+                    `).join('') || '<div class="empty-state" style="padding: 0;">No events in this lane</div>'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else if (compareRunId) {
+        $('diffContainer').innerHTML = '<div class="empty-state">Comparison run chosen, but no records found in comparison archive.</div>';
+      } else {
+        $('diffContainer').innerHTML = '<div class="empty-state">Select a run in "Compare Against" dropdown in the sidebar to activate the Fork Diff timeline.</div>';
+      }
+
+      // Default select the first card in timeline if nothing is selected
+      if (!selectedRecord && recent[0]) {
+        inspect(recent[0]);
+      }
+    }
+
+    // Periodic tick to load live data
+    async function tick() {
+      let url = selectedRunId ? `/data?run_id=${encodeURIComponent(selectedRunId)}` : '/data';
+      if (compareRunId) {
+        url += `${url.includes('?') ? '&' : '?'}compare_run_id=${encodeURIComponent(compareRunId)}`;
+      }
+      try {
+        const res = await fetch(url); // fetch('/data')
+        const data = await res.json();
+        render(data);
+      } catch (e) {
+        $('subtitle').textContent = 'Unable to fetch data from live harness';
+      }
+    }
+
+    // Listeners for dropdown updates
+    $('runSelector').addEventListener('change', e => {
+      selectedRunId = e.target.value;
+      tick();
+    });
+
+    $('compareSelector').addEventListener('change', e => {
+      compareRunId = e.target.value;
+      tick();
+    });
+
+    // Initialize Page
+    tick();
+    setInterval(tick, 2000);
+  </script>
+</body>
+</html>
+"""
 
 
 def benchmark_page() -> str:
@@ -340,6 +1401,7 @@ def _make_handler(jsonl_path: Path, pricing_path: Path, archive_dir: Path):
                     records = load_records(jsonl_path) if jsonl_path.exists() else []
                 pricing = load_pricing(pricing_path)
                 comparison = None
+                compare_records_data = []
                 compare_archive = load_run_archive(archive_dir, compare_run_id) if compare_run_id else None
                 if compare_archive is not None:
                     compare_manifest, compare_records_data = compare_archive
@@ -358,6 +1420,7 @@ def _make_handler(jsonl_path: Path, pricing_path: Path, archive_dir: Path):
                         run_history=run_history,
                         selected_run_id=selected_run_id,
                         comparison=comparison,
+                        compare_records=compare_records_data,
                         scheduler_status=collect_scheduler_status(
                             _DIR / "profiles.yaml",
                             latest_manifest=latest_overall_manifest,
