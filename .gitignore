@@ -56,6 +56,14 @@ npm-debug.log*
 *.key
 *.pem
 
+# Working configs hold real proxy credentials — only the .example is committed.
+co-routing/pools.yaml
+co-routing/benchmark/targets.yaml
+co-routing/benchmark/pricing.yaml
+
+# Generated benchmark artifact (regenerate from results.jsonl when needed).
+co-routing/benchmark/report.html
+
 # ───────────────────────────────────────────────────────────────
 # Data / runtime
 # ───────────────────────────────────────────────────────────────

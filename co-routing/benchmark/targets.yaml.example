@@ -1,0 +1,68 @@
+# Hivewire egress benchmark — track config
+#
+# Copy to benchmark/targets.yaml and edit. Runs against the built-in MOCK pools
+# by default (direct connections, no credentials) so you can validate the
+# plumbing today. When real credentials land:
+#   1. Add the real pools to pools.yaml (see vendors.yaml.example).
+#   2. Swap the `pool:` names below to those real pools.
+#   3. Re-run the IDENTICAL config — same methodology, now over real egress.
+#
+# A "track" = one egress configuration (vendor + pool + region + session_policy)
+# tested against a class of targets. proxy-cheap is the control track.
+#
+# Pick targets you can defensibly benchmark. The defaults are neutral test
+# endpoints; before adding real-world targets, make sure benchmarking them is
+# within bounds (don't turn a benchmark into a ToS problem).
+
+runs_per_target: 3      # repeat each target N times for stability
+concurrency: 5          # max simultaneous requests
+timeout_s: 20
+
+tracks:
+  # --- anyIP track 1: rotating mixed residential/mobile (Irene's recommended baseline)
+  - name: rotating-mixed
+    vendor: anyip
+    pool: mock-us-west          # -> swap to real anyIP rotating pool
+    region: us
+    session_policy: rotating
+    target_class: high-volume
+    ip_echo: true              # parse origin IP from body (ip-echo endpoints)
+    targets:
+      - "https://api.ipify.org?format=json"
+      - "https://httpbin.org/get"
+
+  # --- anyIP track 2: residential + geo-targeting
+  - name: residential-geo
+    vendor: anyip
+    pool: mock-eu              # -> swap to real anyIP residential pool
+    region: de
+    session_policy: rotating
+    target_class: geo
+    ip_echo: true
+    targets:
+      - "https://api.ipify.org?format=json"
+      - "https://httpbin.org/ip"
+
+  # --- anyIP track 3: mobile sticky sessions (high-trust / anti-bot-heavy)
+  - name: mobile-sticky
+    vendor: anyip
+    pool: mock-asia            # -> swap to real anyIP mobile pool
+    region: jp
+    session_policy: sticky
+    target_class: high-trust
+    ip_echo: true
+    targets:
+      - "https://api.ipify.org?format=json"
+      - "https://httpbin.org/headers"
+
+  # --- CONTROL: proxy-cheap, same targets, so anyIP is measured against it
+  - name: control-proxy-cheap
+    vendor: proxy-cheap
+    pool: mock-us-west         # -> swap to real proxy-cheap pool
+    region: us
+    session_policy: rotating
+    target_class: high-volume
+    ip_echo: true
+    targets:
+      - "https://api.ipify.org?format=json"
+      - "https://httpbin.org/get"

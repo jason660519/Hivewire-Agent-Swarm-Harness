@@ -1,0 +1,14 @@
+# Estimated $/GB per vendor — used to ESTIMATE spend from transferred bytes.
+#
+# This is an estimate, NOT an invoice:
+#   - only response bytes are counted (real proxies bill full tunnel traffic:
+#     request + response + TLS/header overhead), so it UNDER-counts.
+#   - reconcile against the vendor's own usage dashboard for the real number.
+# It's accurate enough to compare vendors' cost-efficiency, not to do accounting.
+#
+# Copy to pricing.yaml and fill in your plan's actual rates.
+
+usd_per_gb:
+  anyip: 2.0          # placeholder — anyIP advertises "from $2/GB"; use your real rate
+  proxy-cheap: 3.0    # placeholder — use your real rate
+  mock: 0.0           # mock pools cost nothing (direct connections)

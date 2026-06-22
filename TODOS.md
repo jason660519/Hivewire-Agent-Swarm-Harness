@@ -1,45 +1,42 @@
 # TODOS
 
-Deferred items from the Co-Routing Wedge design
-(`~/.gstack/projects/jason660519-Hivewire-Agent-Swarm-Harness/jasonmacbbookpro-main-design-20260616-194459.md`)
-and from `/plan-eng-review` (2026-06-17).
-Not blocking the A1 demo — tracked here so they don't get lost.
+Technical follow-ups for the co-routing wedge + benchmark harness.
+(Partnership / business tracking lives outside this file.)
 
-- [x] **A2 — LiteLLM proxy-config co-routing.** ~~Fast-follow~~ — pulled
-  forward into this week's scope (T6) per `/plan-eng-review`'s outside-voice
-  tension: Codex argued a week-1 demo without model-tier binding doesn't
-  actually demonstrate co-routing, only egress selection. Bind `model_tier`
-  to a region's proxy via a LiteLLM `model_list` entry. Precondition: only
-  intercepts runtimes that route model calls through a LiteLLM (or
-  OpenAI-compatible) endpoint rather than calling provider SDKs directly.
-- [ ] **Second proxy-vendor contact (business).** anyIP's original proposal
-  is unanswered. If it stays silent after the A1 demo follow-up, identify
-  and approach a second vendor for an actual partnership conversation —
-  distinct from the trial account below, which is just for technical proof.
-- [ ] **anyIP API mechanics.** Rotation/session/auth shape for anyIP's
-  actual API is unknown until their docs are reviewed or the partner
-  responds — needed before the egress provider can target anyIP
-  specifically (a different, generic trial vendor is used for this week's
-  demo instead — see T3).
-- [ ] **Re-verify the DNS-rebinding SSRF fix once a real proxy is wired
-  in.** The fix approved this session (resolve hostname once, pass the
-  resolved IP into httpx's transport) assumes client-side DNS resolution.
-  Codex (outside voice) flagged that most residential proxies resolve the
-  destination hostname themselves via HTTP CONNECT, which could make the
-  client-side fix a no-op once routed through a real proxy. Confirm which
-  model the chosen trial vendor (T3) uses before trusting the guard end to
-  end.
-- [ ] **Automate the AG-UI Dojo round-trip as a real E2E test.** This week
-  it's a manual smoke test only (agent → MCP `web_fetch` → Dojo UI). Worth
-  automating (Playwright or similar) once co-routing is validated and under
-  active, ongoing development — manual coverage is fine for a one-shot demo,
-  not for a codebase you keep changing.
-- [ ] **Response caching for repeated `web_fetch(url, route_profile)`
-  calls.** A simple TTL cache keyed on `(url, route_profile)` would save
-  proxy traffic/cost. Premature for a single demo with no repeat volume —
-  revisit once there's real usage to justify it.
-- [ ] **Full CI/CD / publish pipeline for `co-routing/`** (PyPI, Docker,
-  GitHub Releases). This week only needs "clone and run." Build this out
-  once anyIP (or another vendor) actually wants to install it themselves —
-  building it now is investing in distribution for a demand that isn't
-  confirmed yet.
+## Done
+
+- [x] **A1 — egress-routed `web_fetch` MCP tool** + SSRF guard, re-validated on
+  every redirect hop.
+- [x] **Vendor adapter** — `proxy_template` with `{region}`/`{session_id}`,
+  sticky/rotating session ids, credentials masked in response metadata.
+- [x] **A2 — LiteLLM model-tier↔egress co-routing** (`litellm_corouting.py`).
+  Mechanism corrected from the original plan: LiteLLM exposes no per-deployment
+  proxy field; binding is *process-global*. See design.md §A2 CORRECTION.
+- [x] **Benchmark harness** — runner (live jsonl append), metrics
+  (success/block/error, latency, cost), self-contained HTML report, and a live
+  stdlib dashboard. Runs offline against the built-in mock pools today.
+
+## Pending — blocked on real credentials (anyIP trial incoming)
+
+- [ ] **Phase 0: prove real egress works.** Confirm a real request actually
+  changes the egress IP — `ip_echo` so `observed_ip` differs from our own,
+  `rotating` varies it, `sticky` holds it. Everything to date is mock (direct
+  connections), so this is the make-or-break first check.
+- [ ] **anyIP API mechanics.** Map product type / geo / session to endpoint
+  params + headers from their integration guide, then fill the real
+  `proxy_template`s in `pools.yaml`. (Credentials + docs incoming.)
+- [ ] **A2 live smoke test.** Verify an actual `litellm.acompletion` egresses
+  through the bound client's IP end to end (needs a model API key + proxy cred).
+- [ ] **Re-verify the DNS-rebinding SSRF fix once a real proxy is wired in.**
+  Residential proxies usually resolve the destination hostname themselves via
+  HTTP CONNECT, which can make the client-side IP pin a no-op. Confirm against
+  the trial vendor before trusting the guard end to end.
+
+## Pending — later, when justified by real usage
+
+- [ ] **Automate the AG-UI round-trip as an E2E test** (Playwright or similar).
+  Manual smoke is fine for a one-shot demo, not for active development.
+- [ ] **Response caching for repeated `web_fetch(url, route_profile)`** — TTL
+  cache keyed on `(url, route_profile)`. Premature without repeat volume.
+- [ ] **CI/CD / publish pipeline for `co-routing/`** (PyPI, Docker, Releases).
+  Build when a vendor actually wants to install it themselves.
