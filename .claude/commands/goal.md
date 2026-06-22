@@ -22,7 +22,7 @@ $ARGUMENTS
 長時程任務最大的失敗是「漂移」與「忘了脈絡」。先花便宜的代價建立地圖：
 
 1. 讀 `design.md`（這是 APPROVED 的設計與 wedge 決策，是 closed contract）、
-   `TODOS.md`（deferred 項目與本週 scope）、`README.md`、以及 `PRD.md` 相關章節。
+   `docs/project-process/todos.md`（deferred 項目與本週 scope）、`README.md`、以及 `PRD.md` 相關章節。
 2. 讀 `AGENTS.md` / `CLAUDE.md` / `.claude/local.md`（若存在）取得專案規則。
 3. `git status` + `git log --oneline -15` 看現況與最近軌跡。
 4. 用 Explore subagent 而非逐一 grep，建立「目標相關的程式碼在哪」的地圖。
@@ -76,7 +76,7 @@ $ARGUMENTS
 
 ## Phase 4 — Checkpoint & Continue
 
-- 一個有意義的階段做完 → 用 `mark_chapter` 標記、更新 `TODOS.md`（若有 deferred 項）。
+- 一個有意義的階段做完 → 用 `mark_chapter` 標記、更新 `docs/project-process/todos.md`（若有 deferred 項）。
 - **絕不主動 commit / push / merge / 改 git config / 開關 branch** — 等我明確說。
   （唯一例外：本 repo 已授權 gstack continuous 模式的 WIP checkpoint。）
 - 需要 commit message 時用 Conventional Commits，body 重點寫「為什麼」。
@@ -101,7 +101,7 @@ $ARGUMENTS
 - [ ] 達成了 THE GOAL 描述的結果，且我能獨立驗證。
 - [ ] 相關 test / typecheck 綠燈；UI 改動在真實 browser 驗過、0 dev-overlay errors。
 - [ ] 沒有偷偷繞過 `design.md` 的決策；有衝突都已浮出來討論過。
-- [ ] task list 全部 `completed`，`TODOS.md` 該更新的都更新了。
+- [ ] task list 全部 `completed`，`docs/project-process/todos.md` 該更新的都更新了。
 - [ ] 給我一份精簡收尾：做了什麼關鍵決策、驗了什麼、還有什麼 known gap / deferred。
       （不要逐字複述 diff — 我看得到。）
 

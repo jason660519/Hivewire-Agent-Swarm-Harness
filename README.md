@@ -10,6 +10,14 @@ store, **fork**, and **replay**.
 
 Adapt Hivewire to your workflows, not the other way around.
 
+![Hivewire operations console](docs/assets/console-overview.png)
+
+> The local operations console at `http://127.0.0.1:8799/console`. The **live
+> timeline, fork diff, and route map run on real egress data** — here, 500
+> requests through a proxy-cheap rotating pool across 238 distinct exit IPs
+> (91% success, per-request latency colour-coded). The bottom command composer
+> is an interactive **prototype** (marked as such in the UI).
+
 ## Why
 
 - **Don't get locked to one provider.** Every model call goes through a LiteLLM
@@ -106,13 +114,24 @@ each run to a jsonl dataset, writes a per-run evidence package under
 live dashboard). Runs offline against the mock pools; swap in real pools to
 benchmark them under the identical methodology. See
 [benchmark/README.md](co-routing/benchmark/README.md) and
-[BENCHMARK_MOAT.md](BENCHMARK_MOAT.md).
+[benchmark-moat.md](docs/product/benchmark-moat.md).
 
 ```bash
 uv run python -m benchmark.runner      # run tracks -> results.jsonl
 uv run python -m benchmark.report      # -> report.html
 uv run python -m benchmark.dashboard   # live view at http://127.0.0.1:8799
 ```
+
+| Fork diff — run-to-run comparison | Route map — egress path |
+| --- | --- |
+| ![Fork diff timeline](docs/assets/fork-diff.png) | ![Egress route map](docs/assets/route-map.png) |
+
+**Fork diff** overlays two archived runs per swimlane and marks the higher
+success-rate run as the winner — the same methodology applied to two points in
+time (or two pools, once a second vendor is wired). **Route map** shows the live
+co-routing path: agent client → egress pool (policy + observed exit IP) →
+destination. Both views read the same accumulating `results.jsonl`; nothing is
+hard-coded.
 
 Run [`open_hivewire_console.sh`](open_hivewire_console.sh) from the repo root
 to start the local dashboard if needed and open the single-port home page at
